@@ -13,14 +13,29 @@ export default function App() {
     const insets = useSafeAreaInsets();
     // Assumption: tab bar height used by the app's tab navigator.
     // Adjust this value if your tab bar uses a different height.
-    const TAB_BAR_HEIGHT = 64;
-    const bottomOffset = insets.bottom + TAB_BAR_HEIGHT + 8;
+
     const [permission, requestPermission] = useCameraPermissions();
     const [mode, setMode] = useState<CameraMode>("picture");
     const [facing, setFacing] = useState<CameraType>("front");
     const [recording, setRecording] = useState(true);
 
     const cameraReference = useRef<CameraView>(null);
+
+    const takePicture = useCallback(async () => {
+        if (cameraReference.current == null) {
+            console.warn("Camera reference is null");
+            return;
+        }
+        try {
+            const photo = await cameraReference.current.takePictureAsync({
+                quality: 0.5,
+                skipProcessing: true,
+            });
+            console.log("Photo taken:", photo.uri);
+        } catch (error) {
+            console.error("Error taking picture:", error);
+        }
+    }, []);
 
     const reverseCamera = useCallback(() => {
         setFacing((prev) => (prev === "front" ? "back" : "front"));
@@ -62,7 +77,10 @@ export default function App() {
                     <View className="w-full relative">
                         {/* Centered capture circle */}
                         <View className="absolute left-0 right-0 bottom-5 items-center">
-                            <View className="rounded-full h-20 w-20 border-4 bg-white border-muted" />
+                            <Pressable
+                                className="rounded-full h-20 w-20 border-4 bg-white border-muted"
+                                onPress={takePicture}
+                            ></Pressable>
                         </View>
 
                         {/* Right-aligned icon */}
