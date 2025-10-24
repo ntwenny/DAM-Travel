@@ -1,0 +1,8 @@
+I1021 19:19:34.687764   18550 load.go:37] Reloading schema and connectors...
+I1021 19:19:34.704612   18550 control.go:45] [engine.Service /emulator/dam-travel-backend 9a45] UpdateSchema(): done sources: schema/schema.gql [1384B] 
+I1021 19:19:34.714913   18550 control.go:73] [engine.Service /emulator/dam-travel-backend 9a45] UpdateConnector(default): done sources: connector/mutations.gql [1163B] connector/queries.gql [1855B] 
+I1021 19:19:34.734197   18550 collector.go:107] schema extensions wrote into "/Users/eddiez/Downloads/dam-travel-backend/dataconnect/.dataconnect/schema"
+Generated sources: prelude.gql [65151B] 
+I1021 19:19:34.734387   18550 load.go:115] Finished reloading
+I1021 19:19:34.738072   18550 dev.go:95] Listening on address (HTTP + gRPC): 127.0.0.1:9399
+I1021 19:19:34.739553   18550 dev.go:95] Listening on address (HTTP + gRPC): [::1]:9399
