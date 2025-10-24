@@ -29,7 +29,7 @@ export const onLazyTripItemParsingRequest = onCall(async (request) => {
         throw new HttpsError("not-found", "User document not found.");
     }
 
-    var userData = userDocSnapshot.data();
+    const userData = userDocSnapshot.data();
     if (!userData) {
         throw new HttpsError("not-found", "User data is empty.");
     }
