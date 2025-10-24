@@ -1,0 +1,32 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{userId}/images/{allPaths=**} {
+      // Allow owner to read
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // Allow owner to write only if the uploaded/updated object is an image.
+      // Allow deletes (request.resource == null) as well.
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && (
+          request.resource == null
+          || (request.resource.contentType != null && request.resource.contentType.matches('^image/.*'))
+        );
+    }
+
+    // Deny access to all other storage paths by default.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
