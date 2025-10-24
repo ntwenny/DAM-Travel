@@ -69,7 +69,7 @@ export const onTripItemImageUpload = onObjectFinalized({}, async (event) => {
     const contentType = event.data.contentType;
 
     if (!contentType?.startsWith("image/") || !filePath) {
-        logger.error("NANI?!! Invalid file upload event data:", event.data);
+        logger.error("Invalid file upload event data:", event.data);
     }
 
     const bucket = getStorage().bucket(fileBucket);
