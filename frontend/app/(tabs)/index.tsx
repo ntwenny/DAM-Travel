@@ -7,7 +7,7 @@ export default function PreScan() {
     const router = useRouter();
 
     function startScan() {
-        (router as any).push("/(tabs)/scan");
+        router.push("/(tabs)/scan");
     }
 
     return (
