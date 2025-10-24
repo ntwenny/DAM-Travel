@@ -1,102 +1,27 @@
 import "@/global.css";
-import {
-    CameraMode,
-    CameraType,
-    CameraView,
-    useCameraPermissions,
-} from "expo-camera";
-import { CameraOffIcon, RotateCcwIcon } from "lucide-react-native";
-import { useCallback, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-export default function App() {
-    const insets = useSafeAreaInsets();
-    // Assumption: tab bar height used by the app's tab navigator.
-    // Adjust this value if your tab bar uses a different height.
+import { useRouter } from "expo-router";
+import { ArrowRight } from "lucide-react-native";
+import { Pressable, Text, View } from "react-native";
 
-    const [permission, requestPermission] = useCameraPermissions();
-    const [mode, setMode] = useState<CameraMode>("picture");
-    const [facing, setFacing] = useState<CameraType>("front");
-    const [recording, setRecording] = useState(true);
+export default function PreScan() {
+    const router = useRouter();
 
-    const cameraReference = useRef<CameraView>(null);
-
-    const takePicture = useCallback(async () => {
-        if (cameraReference.current == null) {
-            console.warn("Camera reference is null");
-            return;
-        }
-        try {
-            const photo = await cameraReference.current.takePictureAsync({
-                quality: 0.5,
-                skipProcessing: true,
-            });
-            console.log("Photo taken:", photo.uri);
-        } catch (error) {
-            console.error("Error taking picture:", error);
-        }
-    }, []);
-
-    const reverseCamera = useCallback(() => {
-        setFacing((prev) => (prev === "front" ? "back" : "front"));
-    }, []);
+    function startScan() {
+        (router as any).push("/(tabs)/scan");
+    }
 
     return (
-        <View className="flex-1 bg-background">
-            {!permission?.granted && (
-                <View className="flex-1 items-center justify-center m-safe-offset-5">
-                    <CameraOffIcon
-                        size={64}
-                        color="#FFFFFF"
-                        strokeWidth={0.75}
-                    />
-                    <Text className="mb-4 text-foreground font-bold pt-5">
-                        Please Allow Camera Access
-                    </Text>
-                    <Pressable
-                        className="rounded bg-primary border-muted border-2 px-4 py-2"
-                        onPress={requestPermission}
-                    >
-                        <Text className="font-semibold text-white">
-                            Grant Permission
-                        </Text>
-                    </Pressable>
-                </View>
-            )}
-            <CameraView
-                className="absolute z-10"
-                active={true}
-                ref={cameraReference}
-                mode={mode}
-                facing={facing}
-                style={StyleSheet.absoluteFillObject}
-            ></CameraView>
-            {/* CameraView Overlay Using Absolute Positioning */}
-            <View className="flex flex-1 p-4 justify-end">
-                <View className="flex flex-row justify-center bg-purple-500">
-                    <View className="w-full relative">
-                        {/* Centered capture circle */}
-                        <View className="absolute left-0 right-0 bottom-5 items-center">
-                            <Pressable
-                                className="rounded-full h-20 w-20 border-4 bg-white border-muted"
-                                onPress={takePicture}
-                            ></Pressable>
-                        </View>
-
-                        {/* Right-aligned icon */}
-                        <Pressable
-                            className="absolute bottom-6 right-5 rounded-full p-2"
-                            onPress={reverseCamera}
-                        >
-                            <RotateCcwIcon
-                                size={40}
-                                color="white"
-                                strokeWidth={0.75}
-                            />
-                        </Pressable>
-                    </View>
-                </View>
-            </View>
+        <View className="flex-1 items-center justify-center bg-background p-safe-offset-5">
+            <Text className="text-foreground font-bold mb-4 text-lg">
+                Ready to scan?
+            </Text>
+            <Pressable
+                className="flex-row items-center rounded bg-primary px-6 py-3"
+                onPress={startScan}
+            >
+                <Text className="text-white font-semibold mr-3">Start Scan</Text>
+                <ArrowRight size={18} color="#FFFFFF" strokeWidth={1} />
+            </Pressable>
         </View>
     );
 }
