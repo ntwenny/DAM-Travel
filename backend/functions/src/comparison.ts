@@ -82,4 +82,7 @@ export const onTripItemImageUpload = onObjectFinalized({}, async (event) => {
 
     const detections = result.webDetection;
     logger.info("Web detection results: ", detections);
+
+    logger.info("Completed image analysis for file:", filePath);
+    logger.info("Detection data:", JSON.stringify(detections));
 });
