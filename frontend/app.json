@@ -13,7 +13,8 @@
       "bundleIdentifier": "com.hawkings232.dam-travel",
       "infoPlist": {
         "NSCameraUsageDescription": "We use the camera to take photos."
-      }
+      },
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
@@ -28,6 +29,7 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
+      "googleServicesFile": "./GoogleService-Info.plist",
       "package": "com.hawkings232.damtravel"
     },
     "web": {
@@ -36,6 +38,7 @@
       "bundler": "metro"
     },
     "plugins": [
+      "@react-native-firebase/app",
       "expo-router",
       [
         "expo-splash-screen",
@@ -50,11 +53,25 @@
         }
       ],
       [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      [
         "expo-camera",
         {
           "cameraPermission": "Allow dam_travel to access your camera",
           "microphonePermission": "Allow dam_travel to access your microphone",
           "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your friends."
         }
       ]
     ],
