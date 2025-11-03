@@ -69,9 +69,10 @@ module.exports = {
                 "accordion-up": "accordion-up 0.2s ease-out",
             },
             fontFamily: {
-                system: platformSelect({
-                    ios: "Josefin Sans",
-                }),
+                josefin: ["JosefinSans-Regular"],
+                "josefin-bold": ["JosefinSans-Bold"],
+                "josefin-semibold": ["JosefinSans-SemiBold"],
+                "josefin-light": ["JosefinSans-Light"],
             },
         },
     },
