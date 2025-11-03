@@ -69,6 +69,7 @@
     --web-border: 237 239 237;
     --web-input: 212 218 212;
     --web-ring: 237 239 237;
+
   }
 
   @media (prefers-color-scheme: dark) {
