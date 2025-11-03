@@ -60,7 +60,10 @@
       [
         "expo-font",
         {
-          "fonts": ["./assets/fonts/JosefinSans-Regular.ttf"]
+          "fonts": ["./assets/fonts/JosefinSans-Regular.ttf"],
+          "ios": {
+            "fonts": ["./assets/fonts/JosefinSans-Regular.ttf"]
+          }
         }
       ]
     ],
