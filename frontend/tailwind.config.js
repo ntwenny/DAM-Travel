@@ -1,5 +1,8 @@
+const { hairlineWidth, platformSelect } = require("nativewind/theme");
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+    darkMode: "class",
     content: [
         "./App.tsx",
         "./app/**/*.{js,jsx,ts,tsx}",
@@ -9,27 +12,86 @@ module.exports = {
     theme: {
         extend: {
             colors: {
-                background: "#353535",
-                foreground: "#FFFFFF",
-
+                border: withOpacity("border"),
+                input: withOpacity("input"),
+                ring: withOpacity("ring"),
+                background: withOpacity("background"),
+                foreground: withOpacity("foreground"),
                 primary: {
-                    DEFAULT: "#8A897C",
-                    foreground: "#FFFFFF",
+                    DEFAULT: withOpacity("primary"),
+                    foreground: withOpacity("primary-foreground"),
                 },
                 secondary: {
-                    DEFAULT: "#BDBBB0",
-                    foreground: "#FFFFFF",
+                    DEFAULT: withOpacity("secondary"),
+                    foreground: withOpacity("secondary-foreground"),
                 },
                 destructive: {
-                    DEFAULT: "#FCA311",
-                    foreground: "#FFFFFF",
+                    DEFAULT: withOpacity("destructive"),
+                    foreground: withOpacity("destructive-foreground"),
                 },
                 muted: {
-                    DEFAULT: "#D2D7DF",
-                    foreground: "#D2D7DF",
+                    DEFAULT: withOpacity("muted"),
+                    foreground: withOpacity("muted-foreground"),
                 },
+                accent: {
+                    DEFAULT: withOpacity("accent"),
+                    foreground: withOpacity("accent-foreground"),
+                },
+                popover: {
+                    DEFAULT: withOpacity("popover"),
+                    foreground: withOpacity("popover-foreground"),
+                },
+                card: {
+                    DEFAULT: withOpacity("card"),
+                    foreground: withOpacity("card-foreground"),
+                },
+            },
+            borderWidth: {
+                hairline: hairlineWidth(),
+            },
+            borderRadius: {
+                lg: "var(--radius)",
+                md: "calc(var(--radius) - 2px)",
+                sm: "calc(var(--radius) - 4px)",
+            },
+            keyframes: {
+                "accordion-down": {
+                    from: { height: "0" },
+                    to: { height: "var(--radix-accordion-content-height)" },
+                },
+                "accordion-up": {
+                    from: { height: "var(--radix-accordion-content-height)" },
+                    to: { height: "0" },
+                },
+            },
+            animation: {
+                "accordion-down": "accordion-down 0.2s ease-out",
+                "accordion-up": "accordion-up 0.2s ease-out",
+            },
+            fontFamily: {
+                system: platformSelect({
+                    ios: "Josefin Sans",
+                }),
             },
         },
     },
-    plugins: [],
+    future: {
+        hoverOnlyWhenSupported: true,
+    },
+    plugins: [require("tailwindcss-animate")],
 };
+
+function withOpacity(variableName) {
+    return ({ opacityValue }) => {
+        if (opacityValue !== undefined) {
+            return platformSelect({
+                ios: `rgb(var(--${variableName}) / ${opacityValue})`,
+                android: `rgb(var(--android-${variableName}) / ${opacityValue})`,
+            });
+        }
+        return platformSelect({
+            ios: `rgb(var(--${variableName}))`,
+            android: `rgb(var(--android-${variableName}))`,
+        });
+    };
+}
