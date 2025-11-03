@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.hawkings232.dam-travel",
+      "bundleIdentifier": "com.convergent.dam-travel",
       "infoPlist": {
         "NSCameraUsageDescription": "We use the camera to take photos."
       }
@@ -55,6 +55,12 @@
           "cameraPermission": "Allow dam_travel to access your camera",
           "microphonePermission": "Allow dam_travel to access your microphone",
           "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": ["./assets/fonts/JosefinSans-Regular.ttf"]
         }
       ]
     ],
