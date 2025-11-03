@@ -19,6 +19,7 @@ import {
 import { router } from "expo-router";
 import { SafeAreaView, View, TouchableOpacity } from "react-native";
 import { Button } from "@/components/ui/button";
+import { SignInForm } from "@/components/sign-in-form";
 
 const trips = [
     { label: "Summer Vacation to Hawaii", value: "hawaii" },
@@ -116,7 +117,7 @@ export default function TripSelectionScreen() {
                 <Cloud size={100} color="gray" fill="gray" />
             </View>
 
-            <View
+            {/* <View
                 style={{
                     flex: 1,
                     justifyContent: "center",
@@ -124,10 +125,7 @@ export default function TripSelectionScreen() {
                     paddingHorizontal: 24,
                 }}
             >
-                <Text
-                    className="text-2xl font-bold mb-4"
-                    style={{ fontFamily: "Josefin Sans" }}
-                >
+                <Text className="text-2xl font-[JosefinSans-Bold] mb-4">
                     Welcome back, John Doe
                 </Text>
 
@@ -158,7 +156,13 @@ export default function TripSelectionScreen() {
                     <PlaneLandingIcon color="white" className="mr-2" />
                     <Text>Let's Go!</Text>
                 </Button>
+            </View> */}
+
+            <View className="absolute bg-black opacity-30 inset-0" />
+            <View className="justify-end p-5 z-10">
+                <SignInForm />
             </View>
+
             <View
                 style={{
                     position: "absolute",

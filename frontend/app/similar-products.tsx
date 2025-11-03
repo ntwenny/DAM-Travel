@@ -11,9 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import {
     ArrowLeft,
+    ArrowUpRightFromCircleIcon,
     DollarSignIcon,
+    EarthIcon,
     InfoIcon,
     LockIcon,
+    ShipIcon,
     ShoppingBagIcon,
 } from "lucide-react-native";
 import {
@@ -24,23 +27,24 @@ import {
     SafeAreaView,
 } from "react-native";
 import { router } from "expo-router";
-
+import { useFonts } from "expo-font";
+import { useEffect } from "react";
 const similarItems = [
     {
         id: "1",
-        source: "Store A",
+        source: "Amazon",
         image: "https://via.placeholder.com/150",
         isLocked: true,
     },
     {
         id: "2",
-        source: "Store B",
+        source: "Target",
         image: "https://via.placeholder.com/150",
         isLocked: false,
     },
     {
         id: "3",
-        source: "Store C",
+        source: "eBay",
         image: "https://via.placeholder.com/150",
         isLocked: true,
     },
@@ -59,10 +63,10 @@ export default function SimilarProductsScreen() {
                     </TouchableOpacity>
 
                     <View className="p-5 text-center flex justify-center items-center">
-                        <Text className="text-3xl  flex font-bold">
+                        <Text className="text-3xl flex font-bold">
                             You're getting a{" "}
                         </Text>
-                        <Text className="text-3xl text-primary-foreground font-bold italic">
+                        <Text className="text-3xl text-primary-foreground font-[JosefinSans-Bold]">
                             STEAL!
                         </Text>
                     </View>
@@ -73,28 +77,39 @@ export default function SimilarProductsScreen() {
                                 <CardTitle className="">
                                     <View className="w-full flex-row justify-start items-center pb-2">
                                         <InfoIcon size={20} color="white" />
-                                        <Text className="mx-2 text-lg font-bold">
+                                        <Text className="mx-2 font-[JosefinSans-Bold] text-lg">
                                             Hotdog Thermometer
                                         </Text>
                                     </View>
-                                    <View className="border-border border-2 flex flex-row flex-wrap rounded-xl px-2 py-1 mt-2">
+                                    <View className=" flex flex-row flex-wrap gap-x-2 gap-y-1 rounded-xl px-2 py-1 mt-2">
                                         <Badge className="text-sm">
                                             <DollarSignIcon
                                                 size={16}
                                                 className="mr-1"
+                                                color="white"
                                             />
                                             <Text>On Sale</Text>
                                         </Badge>
                                         <Badge
-                                            className="text-sm mr-2 mb-2"
+                                            className="text-sm"
                                             variant="secondary"
                                         >
+                                            <ShipIcon
+                                                size={16}
+                                                className="mr-1"
+                                                color="white"
+                                            />
                                             <Text>Free Shipping</Text>
                                         </Badge>
                                         <Badge
                                             className="text-sm mr-2 mb-2"
-                                            variant="outline"
+                                            variant="default"
                                         >
+                                            <EarthIcon
+                                                size={16}
+                                                className="mr-1"
+                                                color="white"
+                                            />
                                             <Text>Internationally Shipped</Text>
                                         </Badge>
                                     </View>
@@ -102,16 +117,37 @@ export default function SimilarProductsScreen() {
                             </View>
                         </CardHeader>
                         <CardContent>
-                            <Image
-                                source={{
-                                    uri: "https://via.placeholder.com/300",
-                                }}
-                                className="w-full h-48 rounded-lg"
-                            />
-                            <Text className="text-2xl font-bold text-center my-2">
-                                $200
-                            </Text>
+                            <View className="relative w-full h-40">
+                                <View className="absolute inset-0 flex items-center justify-center">
+                                    <View className="absolute w-36 h-36 rounded-full bg-primary opacity-30 -left-8" />
+                                    <View className="absolute w-44 h-44 rounded-full bg-primary opacity-20 right-8" />
+                                    <View className="absolute w-28 h-28 rounded-full bg-primary opacity-25 -bottom-6" />
+                                    <Image
+                                        source={{
+                                            uri: "https://via.placeholder.com/120",
+                                        }}
+                                        className="w-28 h-28 rounded-full z-10"
+                                        resizeMode="cover"
+                                    />
+                                </View>
+                            </View>
                         </CardContent>
+                        <CardFooter className="justify-between items-center">
+                            <View className="flex flex-row items-center">
+                                <DollarSignIcon size={20} color="white" />
+                                <Text className="text-xl font-light text-center my-2">
+                                    200
+                                </Text>
+                            </View>
+                            <Button variant="default">
+                                <ArrowUpRightFromCircleIcon
+                                    size={20}
+                                    className="text-primary-foreground mr-2"
+                                    color="white"
+                                />
+                                <Text className="font-bold">Add to Bag</Text>
+                            </Button>
+                        </CardFooter>
                     </Card>
 
                     <View className="mt-6">
@@ -147,16 +183,6 @@ export default function SimilarProductsScreen() {
                                 </Card>
                             ))}
                         </ScrollView>
-                    </View>
-
-                    <View className="mt-6">
-                        <Button>
-                            <ShoppingBagIcon
-                                size={20}
-                                className="text-primary-foreground mr-2"
-                            />
-                            <Text>Add to Bag</Text>
-                        </Button>
                     </View>
                 </View>
             </ScrollView>
