@@ -11,10 +11,10 @@ export default function RootLayout() {
 
     return (
         <ThemeProvider value={NAV_THEME.dark}>
-            <TripSelectionScreen />
-            {/* <Stack>
+            {/* <TripSelectionScreen /> */}
+            <Stack>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            </Stack> */}
+            </Stack>
             <PortalHost />
         </ThemeProvider>
     );
