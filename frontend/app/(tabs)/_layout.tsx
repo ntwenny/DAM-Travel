@@ -69,7 +69,7 @@ export default function TabsLayout() {
                 options={{
                     title: "Camera",
                     tabBarIcon: () => (
-                        <View className="border-muted border-2 rounded-full elevation-lg -translate-y-5 p-4 bg-foreground ">
+                        <View className="border-muted border-2 rounded-full elevation-lg -translate-y-2 p-4 bg-foreground ">
                             <CameraIcon size={28} color="black" />
                         </View>
                     ),
