@@ -9,7 +9,10 @@ export default function RootLayout() {
 
     return (
         <ThemeProvider value={NAV_THEME.dark}>
-            <Stack screenOptions={{ headerShown: false }}>
+            <Stack
+                screenOptions={{ headerShown: false }}
+                initialRouteName="trip-selection"
+            >
                 <Stack.Screen name="trip-selection" />
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="similar-products" />
