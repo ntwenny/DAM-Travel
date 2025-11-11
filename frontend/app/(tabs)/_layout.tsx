@@ -9,6 +9,7 @@ import {
     SheetIcon,
 } from "lucide-react-native";
 import { View } from "react-native";
+import { setLastTabRoute } from "@/lib/navigation-state";
 
 export default function TabsLayout() {
     return (
@@ -26,6 +27,13 @@ export default function TabsLayout() {
                 tabBarActiveTintColor: "white",
                 tabBarInactiveTintColor: "gray",
             }}
+            screenListeners={({ route }) => ({
+                focus: () => {
+                    if (route.name !== "index") {
+                        setLastTabRoute(route.name);
+                    }
+                },
+            })}
         >
             <Tabs.Screen
                 name="home"
@@ -68,6 +76,8 @@ export default function TabsLayout() {
                 name="index"
                 options={{
                     title: "Camera",
+                    headerShown: false,
+                    tabBarStyle: { display: "none" },
                     tabBarIcon: () => (
                         <View className="border-muted border-2 rounded-full elevation-lg -translate-y-2 p-4 bg-foreground ">
                             <CameraIcon size={28} color="black" />

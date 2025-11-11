@@ -96,7 +96,9 @@ export default function ScanScreen() {
                     />
 
                     <Pressable
-                        onPress={() => navigation.goBack()}
+                        onPress={() => {
+                            navigation.navigate("finance" as never);
+                        }}
                         className="absolute top-12 left-5 bg-black/40 p-3 rounded-full z-20"
                     >
                         <ArrowLeftIcon color="white" size={24} strokeWidth={2} />
