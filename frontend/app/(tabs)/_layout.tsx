@@ -1,15 +1,12 @@
 import { Tabs } from "expo-router";
 import {
     HomeIcon,
-    MaximizeIcon,
     ShoppingBagIcon,
     DollarSignIcon,
     UserIcon,
     CameraIcon,
-    SheetIcon,
 } from "lucide-react-native";
 import { View } from "react-native";
-import { setLastTabRoute } from "@/lib/navigation-state";
 
 export default function TabsLayout() {
     return (
@@ -27,13 +24,6 @@ export default function TabsLayout() {
                 tabBarActiveTintColor: "white",
                 tabBarInactiveTintColor: "gray",
             }}
-            screenListeners={({ route }) => ({
-                focus: () => {
-                    if (route.name !== "index") {
-                        setLastTabRoute(route.name);
-                    }
-                },
-            })}
         >
             <Tabs.Screen
                 name="home"
@@ -41,15 +31,6 @@ export default function TabsLayout() {
                     title: "Home",
                     tabBarIcon: ({ color }) => (
                         <HomeIcon size={24} color={color} />
-                    ),
-                }}
-            />
-            <Tabs.Screen
-                name="expand"
-                options={{
-                    title: "Expand",
-                    tabBarIcon: ({ color }) => (
-                        <MaximizeIcon size={24} color={color} />
                     ),
                 }}
             />
@@ -64,11 +45,11 @@ export default function TabsLayout() {
             /> */}
 
             <Tabs.Screen
-                name="finance"
+                name="cart"
                 options={{
-                    title: "Finance",
+                    title: "Cart",
                     tabBarIcon: ({ color }) => (
-                        <DollarSignIcon size={24} color={color} />
+                        <ShoppingBagIcon size={24} color={color} />
                     ),
                 }}
             />
@@ -86,20 +67,20 @@ export default function TabsLayout() {
                 }}
             />
             <Tabs.Screen
+                name="finance"
+                options={{
+                    title: "Finance",
+                    tabBarIcon: ({ color }) => (
+                        <DollarSignIcon size={24} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
                 name="profile"
                 options={{
                     title: "Profile",
                     tabBarIcon: ({ color }) => (
                         <UserIcon size={24} color={color} />
-                    ),
-                }}
-            />
-            <Tabs.Screen
-                name="diagnostics"
-                options={{
-                    title: "Diagnostics",
-                    tabBarIcon: ({ color }) => (
-                        <SheetIcon size={24} color={color} />
                     ),
                 }}
             />
