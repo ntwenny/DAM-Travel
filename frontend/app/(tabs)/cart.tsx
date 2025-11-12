@@ -1,12 +1,36 @@
-import React from "react";
-import { Image, Pressable, ScrollView, Text, View } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { Alert, Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MinusIcon, PlusIcon, Trash2Icon, HeartIcon } from "lucide-react-native";
 import { useCart } from "@/context/cart-context";
 
 export default function CartScreen() {
   const { cartItems, updateQuantity, removeFromCart, clearCart } = useCart();
-  const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setSelected((prev) => {
+      const next: Record<string, boolean> = {};
+      cartItems.forEach((item) => {
+        next[item.id] = prev[item.id] ?? true;
+      });
+      return next;
+    });
+  }, [cartItems]);
+
+  const selectedItems = useMemo(
+    () => cartItems.filter((item) => selected[item.id]),
+    [cartItems, selected]
+  );
+
+  const total = selectedItems.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
+
+  const toggleSelected = (id: string) => {
+    setSelected((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-[#f3f5f9]">
@@ -26,11 +50,27 @@ export default function CartScreen() {
             className="mb-4 rounded-3xl bg-white p-4 shadow-sm shadow-[#b9c6d880]"
           >
             <View className="flex-row gap-4">
-              <Image
-                source={{ uri: item.image }}
-                className="h-20 w-20 rounded-2xl bg-[#e8ecf5]"
-                resizeMode="cover"
-              />
+              <Pressable
+                onPress={() => toggleSelected(item.id)}
+                className="flex-row items-center gap-3"
+              >
+                <View
+                  className={`h-6 w-6 items-center justify-center rounded-md border-2 ${
+                    selected[item.id]
+                      ? "bg-[#00a0d6] border-[#00a0d6]"
+                      : "border-[#cbd5f0] bg-white"
+                  }`}
+                >
+                  {selected[item.id] && (
+                    <Text className="text-xs font-bold text-white">✓</Text>
+                  )}
+                </View>
+                <Image
+                  source={{ uri: item.image }}
+                  className="h-20 w-20 rounded-2xl bg-[#e8ecf5]"
+                  resizeMode="cover"
+                />
+              </Pressable>
               <View className="flex-1">
                 <View className="flex-row items-start justify-between">
                   <View className="flex-1 pr-2">
@@ -119,13 +159,34 @@ export default function CartScreen() {
       <View className="absolute inset-x-0 bottom-0 border-t border-white/40 bg-white p-4">
         <View className="flex-row items-center justify-between">
           <View>
-            <Text className="text-sm text-[#6b7280]">Total</Text>
+            <Text className="text-sm text-[#6b7280]">
+              Selected ({selectedItems.length})
+            </Text>
             <Text className="text-2xl font-semibold text-[#111827]">
               ${total.toFixed(2)}
             </Text>
           </View>
-          <Pressable className="rounded-full bg-[#00a0d6] px-6 py-3">
-            <Text className="text-base font-semibold text-white">Checkout</Text>
+          <Pressable
+            className={`rounded-full px-6 py-3 ${
+              selectedItems.length > 0
+                ? "bg-[#00a0d6]"
+                : "bg-[#cfd8e9]"
+            }`}
+            disabled={selectedItems.length === 0}
+            onPress={() => {
+              if (selectedItems.length === 0) {
+                Alert.alert("Select items", "Please select at least one item to checkout.");
+                return;
+              }
+              Alert.alert(
+                "Checkout",
+                `Proceeding with ${selectedItems.length} item(s) totaling $${total.toFixed(2)}`
+              );
+            }}
+          >
+            <Text className="text-base font-semibold text-white">
+              Checkout
+            </Text>
           </Pressable>
         </View>
       </View>
