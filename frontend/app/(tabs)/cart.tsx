@@ -3,6 +3,7 @@ import { Alert, Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MinusIcon, PlusIcon, Trash2Icon, HeartIcon } from "lucide-react-native";
 import { useCart } from "@/context/cart-context";
+import { router } from "expo-router";
 
 export default function CartScreen() {
   const { cartItems, updateQuantity, removeFromCart, clearCart } = useCart();
@@ -178,14 +179,11 @@ export default function CartScreen() {
                 Alert.alert("Select items", "Please select at least one item to checkout.");
                 return;
               }
-              Alert.alert(
-                "Checkout",
-                `Proceeding with ${selectedItems.length} item(s) totaling $${total.toFixed(2)}`
-              );
+              router.push("/mock-receipt");
             }}
           >
             <Text className="text-base font-semibold text-white">
-              Checkout
+              Calculate
             </Text>
           </Pressable>
         </View>
