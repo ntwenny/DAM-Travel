@@ -11,7 +11,7 @@ export default function RootLayout() {
 
     return (
         <ThemeProvider value={NAV_THEME.dark}>
-            <TripSelectionScreen />
+            <SimilarProductsScreen />
             {/* <Stack>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             </Stack> */}

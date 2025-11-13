@@ -17,9 +17,19 @@ import {
     PlaneLandingIcon,
 } from "lucide-react-native";
 import { router } from "expo-router";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SafeAreaView, View, TouchableOpacity } from "react-native";
 import { Button } from "@/components/ui/button";
 import { SignInForm } from "@/components/sign-in-form";
+import { useState, useEffect } from "react";
+import { SignUpForm } from "@/components/sign-up-form";
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withRepeat,
+    withSequence,
+    withTiming,
+} from "react-native-reanimated";
 
 const trips = [
     { label: "Summer Vacation to Hawaii", value: "hawaii" },
@@ -47,37 +57,57 @@ const starPositions = [
     { leftPct: 0.84, topPct: 0.72, size: 2, opacity: 0.6 },
 ];
 
-function Stars() {
+const AnimatedStarIcon = Animated.createAnimatedComponent(StarIcon);
+
+function AnimatedStar({ star }: { star: (typeof starPositions)[0] }) {
     const { width, height } = require("react-native").Dimensions.get("window");
+    const opacity = useSharedValue(star.opacity);
+    useEffect(() => {
+        opacity.value = withRepeat(
+            withSequence(
+                withTiming(star.opacity * 0.5, {
+                    duration: 1000 + Math.random() * 1000,
+                }),
+                withTiming(star.opacity, {
+                    duration: 1000 + Math.random() * 1000,
+                })
+            ),
+            -1,
+            true
+        );
+    }, []);
+
+    const animatedStyle = useAnimatedStyle(() => {
+        return {
+            position: "absolute",
+            left: Math.round(star.leftPct * width),
+            top: Math.round(star.topPct * height),
+            width: 20,
+            height: 20,
+            borderRadius: 10,
+            opacity: opacity.value,
+            zIndex: 0,
+        };
+    });
+
+    return (
+        <AnimatedStarIcon color="white" fill="white" style={animatedStyle} />
+    );
+}
+
+function Stars() {
     return (
         <>
-            {starPositions.map((s, i) => {
-                const left = Math.round(s.leftPct * width);
-                const top = Math.round(s.topPct * height);
-                const size = s.size;
-                return (
-                    <StarIcon
-                        key={`star-${i}`}
-                        color="white"
-                        fill="white"
-                        style={{
-                            position: "absolute",
-                            left,
-                            top,
-                            width: size,
-                            height: size,
-                            borderRadius: size / 2,
-                            opacity: s.opacity,
-                            zIndex: 0,
-                        }}
-                    />
-                );
-            })}
+            {starPositions.map((s, i) => (
+                <AnimatedStar key={`star-${i}`} star={s} />
+            ))}
         </>
     );
 }
 
 export default function TripSelectionScreen() {
+    const [tabState, setTabState] = useState("sign-in");
+    const [isSignedIn, setIsSignedIn] = useState(true);
     return (
         <SafeAreaView className="flex-1 bg-background">
             <Stars />
@@ -117,51 +147,67 @@ export default function TripSelectionScreen() {
                 <Cloud size={100} color="gray" fill="gray" />
             </View>
 
-            {/* <View
-                style={{
-                    flex: 1,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    paddingHorizontal: 24,
-                }}
-            >
-                <Text className="text-2xl font-[JosefinSans-Bold] mb-4">
-                    Welcome back, John Doe
-                </Text>
-
-                <Select>
-                    <SelectTrigger className="w-full">
-                        <SelectValue
-                            className="text-muted-foreground"
-                            placeholder="Select a trip"
-                        />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {trips.map((trip) => (
-                            <SelectItem
-                                key={trip.value}
-                                label={trip.label}
-                                value={trip.value}
-                            >
-                                {trip.label}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-
-                <Button
-                    className="mt-10 font-bold flex flex-row items-center justify-center"
-                    onPress={() => router.push("/(tabs)/home")}
+            {isSignedIn && (
+                <View
+                    style={{
+                        flex: 1,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        paddingHorizontal: 24,
+                    }}
                 >
-                    <PlaneLandingIcon color="white" className="mr-2" />
-                    <Text>Let's Go!</Text>
-                </Button>
-            </View> */}
+                    <Text className="text-2xl font-[JosefinSans-Bold] mb-4">
+                        Welcome back, John Doe
+                    </Text>
 
-            <View className="absolute bg-black opacity-30 inset-0" />
-            <View className="justify-end p-5 z-10">
-                <SignInForm />
-            </View>
+                    <Select>
+                        <SelectTrigger className="w-full">
+                            <SelectValue
+                                className="text-muted-foreground"
+                                placeholder="Select a trip"
+                            />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {trips.map((trip) => (
+                                <SelectItem
+                                    key={trip.value}
+                                    label={trip.label}
+                                    value={trip.value}
+                                >
+                                    {trip.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    <Button
+                        className="mt-10 font-bold flex flex-row items-center justify-center"
+                        onPress={() => router.push("/(tabs)/home")}
+                    >
+                        <PlaneLandingIcon color="white" className="mr-2" />
+                        <Text>Let's Go!</Text>
+                    </Button>
+                </View>
+            )}
+            {!isSignedIn && (
+                <View className="absolute bg-black opacity-30 inset-0" />
+            )}
+
+            {!isSignedIn && (
+                <View className=" flex flex-col gap-y-2 p-5 z-10">
+                    <Tabs value={tabState} onValueChange={setTabState}>
+                        <TabsList>
+                            <TabsTrigger value="sign-in">
+                                <Text>Sign In</Text>
+                            </TabsTrigger>
+                            <TabsTrigger value="sign-up">
+                                <Text>Sign Up</Text>
+                            </TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                    {tabState == "sign-in" ? <SignInForm /> : <SignUpForm />}
+                </View>
+            )}
 
             <View
                 style={{
