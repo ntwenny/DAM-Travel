@@ -11,12 +11,18 @@ importers:
       '@google-cloud/vision':
         specifier: ^5.3.4
         version: 5.3.4
+      currency.js:
+        specifier: ^2.0.4
+        version: 2.0.4
       firebase-admin:
         specifier: ^12.6.0
         version: 12.7.0
       firebase-functions:
         specifier: ^6.0.1
         version: 6.6.0(firebase-admin@12.7.0)
+      sales-tax:
+        specifier: ^2.21.0
+        version: 2.21.0
       uuid:
         specifier: ^13.0.0
         version: 13.0.0
@@ -1044,6 +1050,10 @@ packages:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
 
+  currency.js@2.0.4:
+    resolution: {integrity: sha512-6/OplJYgJ0RUlli74d93HJ/OsKVBi8lB1+Z6eJYS1YZzBuIp4qKKHpJ7ad+GvTlWmLR/hLJOWTykN5Nm8NJ7+w==}
+    engines: {node: '>=4'}
+
   data-uri-to-buffer@4.0.1:
     resolution: {integrity: sha512-0R9ikRb668HB7QDxT1vkpuUBtqc53YyAwMwGeUFKRojY/NWKvdZ+9UYtRfGmhqNbRkTSVpMbmyhXipFFv2cb/A==}
     engines: {node: '>= 12'}
@@ -1151,6 +1161,10 @@ packages:
 
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
+
+  ein-validator@1.0.1:
+    resolution: {integrity: sha512-Qhf7R4YeKCt/06J0CmxzDvqyzpkQvcUls3uJAamh5jrLxv0ZNTCzuzVIU2rXDZk8LKwLXNRFsL4ScAvtdBZsKA==}
+    engines: {node: '>=0.10'}
 
   electron-to-chromium@1.5.237:
     resolution: {integrity: sha512-icUt1NvfhGLar5lSWH3tHNzablaA5js3HVHacQimfP8ViEBOQv+L7DKEuHdbTZ0SKCO1ogTJTIL1Gwk9S6Qvcg==}
@@ -1995,6 +2009,9 @@ packages:
     resolution: {integrity: sha512-PRp66vJ865SSqOlgqS8hujT5U4AOgMfhrwYIuIhfKaoSCZcirrmASQr8CX7cUg+RMih+hgznrjp99o+W4pJLHQ==}
     engines: {node: '>=12', npm: '>=6'}
 
+  jsvat@2.5.3:
+    resolution: {integrity: sha512-jra/1qujP+vrrCgLcGRRHwLrKj69cLvWUMeFwhwoD/AeHSZ9BY9Bf59GNOtDdDmGhchNwasrWjnKBTbL19FHsg==}
+
   jwa@1.4.2:
     resolution: {integrity: sha512-eeH5JO+21J78qMvTIDdBXidBd6nG2kZjg5Ohz/1fpa28Z4CcsWUzJ1ZZyFq/3z3N17aZy+ZuBoHljASbL1WfOw==}
 
@@ -2470,6 +2487,10 @@ packages:
   safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
+  sales-tax@2.21.0:
+    resolution: {integrity: sha512-FiI15GqM3h9KKWYIQvN5FLV5JR+igyZm2QuY4UsvjryRafjkUUgH2dn6Bw7KeQRaXsYL/X6bHcOwfayanr9kag==}
+    engines: {node: '>= 10.0.0'}
+
   semver@6.3.1:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
     hasBin: true
@@ -2775,6 +2796,9 @@ packages:
   v8-to-istanbul@9.3.0:
     resolution: {integrity: sha512-kiGUalWN+rgBJ/1OHZsBtU4rXZOfj/7rKQxULKlIzwzQSvMJUUNgPwJEEh7gU6xEVxC0ahoOBvN2YI8GH6FNgA==}
     engines: {node: '>=10.12.0'}
+
+  validate-vat@0.9.0:
+    resolution: {integrity: sha512-Lbi+g3NAG/v3KHNk912soN4XrIN0GFY9tDtUzzu9MVuJ2zd5MnLJ0OQGol1eqgu71z0dJCDdA+n9oqbxPpzlGw==}
 
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
@@ -4102,6 +4126,8 @@ snapshots:
       shebang-command: 2.0.0
       which: 2.0.2
 
+  currency.js@2.0.4: {}
+
   data-uri-to-buffer@4.0.1: {}
 
   data-view-buffer@1.0.2:
@@ -4193,6 +4219,8 @@ snapshots:
       safe-buffer: 5.2.1
 
   ee-first@1.1.1: {}
+
+  ein-validator@1.0.1: {}
 
   electron-to-chromium@1.5.237: {}
 
@@ -5472,6 +5500,8 @@ snapshots:
       ms: 2.1.3
       semver: 7.7.3
 
+  jsvat@2.5.3: {}
+
   jwa@1.4.2:
     dependencies:
       buffer-equal-constant-time: 1.0.1
@@ -5935,6 +5965,12 @@ snapshots:
 
   safer-buffer@2.1.2: {}
 
+  sales-tax@2.21.0:
+    dependencies:
+      ein-validator: 1.0.1
+      jsvat: 2.5.3
+      validate-vat: 0.9.0
+
   semver@6.3.1: {}
 
   semver@7.7.3: {}
@@ -6307,6 +6343,8 @@ snapshots:
       '@jridgewell/trace-mapping': 0.3.31
       '@types/istanbul-lib-coverage': 2.0.6
       convert-source-map: 2.0.0
+
+  validate-vat@0.9.0: {}
 
   vary@1.1.2: {}
 
