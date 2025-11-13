@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
+import { router } from "expo-router";
 import * as React from "react";
 import { Pressable, type TextInput, View } from "react-native";
 
@@ -24,6 +25,7 @@ export function SignInForm() {
 
     function onSubmit() {
         // TODO: Submit form and navigate to protected screen if successful
+        router.replace("/(tabs)/home")
     }
 
     return (
