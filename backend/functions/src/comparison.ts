@@ -5,6 +5,7 @@ import vision from "@google-cloud/vision";
 import { onObjectFinalized } from "firebase-functions/storage";
 import { getStorage } from "firebase-admin/storage";
 import { TripItem, TripItemParsingStatus } from "./types/user";
+import { addTripItemInternal } from "./trip";
 
 const database = firestore();
 const visionClient = new vision.ImageAnnotatorClient();
@@ -70,16 +71,56 @@ export const onTripItemImageUpload = onObjectFinalized({}, async (event) => {
 
     if (!contentType?.startsWith("image/") || !filePath) {
         logger.error("Invalid file upload event data:", event.data);
+        return;
     }
 
-    const bucket = getStorage().bucket(fileBucket);
-    const downloadResponse = await bucket.file(filePath).download();
-    const imageBuffer = downloadResponse[0];
+    // Parse file path to extract user ID and trip ID
+    const pathParts = filePath.split("/");
+    if (pathParts.length < 3 || pathParts[0] !== "users") {
+        logger.info("Not a user trip item image path:", filePath);
+        return;
+    }
 
-    const [result] = await visionClient.webDetection({
-        image: { content: imageBuffer },
-    });
+    const [, uid, tripId] = pathParts;
 
-    const detections = result.webDetection;
-    logger.info("Web detection results: ", detections);
+    try {
+        const bucket = getStorage().bucket(fileBucket);
+        const downloadResponse = await bucket.file(filePath).download();
+        const imageBuffer = downloadResponse[0];
+
+        const [result] = await visionClient.webDetection({
+            image: { content: imageBuffer },
+        });
+
+        const detections = result.webDetection;
+        logger.info("Web detection results: ", detections);
+
+        // Extract item information from vision API results
+        let itemName = "Item from Image";
+        let estimatedPrice = 0;
+
+        // Try to extract product name from web entities
+        if (detections?.webEntities && detections.webEntities.length > 0) {
+            const topEntity = detections.webEntities[0];
+            if (topEntity.description) {
+                itemName = topEntity.description;
+            }
+        }
+
+        // Create trip item using the centralized function
+        const newTripItem = {
+            name: itemName,
+            price: estimatedPrice,
+            imageUrl: `gs://${fileBucket}/${filePath}`,
+            notes: "Automatically detected from uploaded image",
+            category: "Auto-detected",
+        };
+
+        await addTripItemInternal(uid, tripId, newTripItem);
+        logger.info(
+            `Successfully created trip item from image for trip ${tripId}`
+        );
+    } catch (error) {
+        logger.error("Error processing image upload:", error);
+    }
 });

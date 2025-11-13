@@ -18,6 +18,7 @@ import {
     onLazyTripItemParsingRequest,
     onTripItemImageUpload,
 } from "./comparison";
+import { addTripItem, getTripItems, createReceipt } from "./trip";
 
 logger.info("Registering Functions...");
 
@@ -27,4 +28,7 @@ export {
     onUserDelete,
     onLazyTripItemParsingRequest,
     onTripItemImageUpload,
+    addTripItem,
+    getTripItems,
+    createReceipt,
 };
