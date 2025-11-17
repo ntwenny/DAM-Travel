@@ -8,14 +8,38 @@ export interface Trip {
     endDate: Date;
 }
 
+export interface ShoppingDetectionItem {
+    pages: Array<{
+        name: string;
+        productPage: string; // product page URL
+        thumbnail?: string; // image url that matched
+        extractedPrice?: number;
+        source?: string; // source of the link (vision:web, google, etc.)
+        extensions: Array<string>;
+    }>;
+}
+
 export interface TripItem {
     id: string;
     name: string;
     price: number;
-    currency: string;
+    currency?: string;
+    thumbnail?: string;
+    productPage?: string;
+    source?: string;
+    _items?: ShoppingDetectionItem;
+    parsingStatus?: "NOT_READY" | "PARSING" | "PARSED" | "FAILED";
+}
+
+export interface TripLink {
+    productPage: string;
     imageUrl?: string;
-    notes?: string;
+    extractedPrice?: number;
+    currency?: string;
     category?: string;
+    source?: string;
+    tags?: string[];
+    title?: string;
 }
 
 export interface ShoppingCart {

@@ -1,8 +1,10 @@
 import { UserProperties } from "@/types/user";
 import { firestore } from "firebase-admin";
+import { createTripInternal } from "./trip";
 import { auth } from "firebase-functions/v1";
 import * as logger from "firebase-functions/logger";
 import { HttpsError, onCall } from "firebase-functions/v1/https";
+import { getStorage } from "firebase-admin/storage";
 
 const database = firestore();
 
@@ -32,9 +34,43 @@ export const onUserCreate = auth.user().onCreate(async (user) => {
     };
 
     try {
+        // Create user profile in Firestore
         await database.collection("users").doc(user.uid).set(userProfile);
+
+        // Create a default trip for the new user using shared trip creation helper
+        try {
+            const now = new Date();
+            await createTripInternal(user.uid, {
+                name: "My First Trip",
+                location: "",
+                currency: "",
+                budget: 0,
+                startDate: now,
+                endDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+            });
+        } catch (err) {
+            logger.error("Failed to create default trip for user:", err);
+        }
+
+        // Create user directory in Storage by adding a placeholder file
+        const bucket = getStorage().bucket();
+        const userDirPath = `users/${user.uid}/.init`;
+        const file = bucket.file(userDirPath);
+        await file.save("", {
+            metadata: {
+                contentType: "text/plain",
+                metadata: {
+                    createdAt: new Date().toISOString(),
+                },
+            },
+        });
+
+        logger.info(`Created storage directory for user ${user.uid}`);
     } catch (error) {
-        logger.error("Error creating user profile:", error);
+        logger.error(
+            "Error creating user profile or storage directory:",
+            error
+        );
     }
 });
 
@@ -89,6 +125,15 @@ export const onUserModifyProfile = onCall(async (request) => {
 export const onUserDelete = auth.user().onDelete(async (user) => {
     try {
         await database.collection("users").doc(user.uid).delete();
+        // Remove all storage objects under the user's prefix
+        try {
+            const bucket = getStorage().bucket();
+            // deleteFiles will remove all objects under the prefix
+            await bucket.deleteFiles({ prefix: `users/${user.uid}/` });
+            logger.info(`Deleted storage files for user ${user.uid}`);
+        } catch (err) {
+            logger.error("Failed to delete storage files for user:", err);
+        }
     } catch (error) {
         logger.error("Error deleting user profile:", error);
     }
