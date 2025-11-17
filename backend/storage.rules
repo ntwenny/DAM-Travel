@@ -1,10 +1,15 @@
 rules_version = '2';
 
-// Craft rules based on data in your Firestore database
-// allow write: if firestore.get(
-//    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
+// Users can only read/write to their own directory
 service firebase.storage {
   match /b/{bucket}/o {
+    // User-specific directory: users/{userId}/{tripId}/{imageFile}
+    match /users/{userId}/{allPaths=**} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Block all other paths
     match /{allPaths=**} {
       allow read, write: if false;
     }
