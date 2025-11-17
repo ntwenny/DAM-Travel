@@ -12,19 +12,38 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
 import * as React from "react";
-import { Pressable, TextInput, View } from "react-native";
+import { type TextInput, View } from "react-native";
 import AnimatedView from "./ui/animated-view";
 
-export function SignUpForm() {
-    const passwordInputRef = React.useRef<TextInput>(null);
+type SignUpFormProps = {
+    onSubmit: (email: string, password: string) => Promise<void> | void;
+    onSwitch: () => void;
+    loading?: boolean;
+    errorMessage?: string | null;
+};
 
-    function onEmailSubmitEditing() {
+export function SignUpForm({
+    onSubmit,
+    onSwitch,
+    loading = false,
+    errorMessage,
+}: SignUpFormProps) {
+    const passwordInputRef = React.useRef<TextInput>(null);
+    const [email, setEmail] = React.useState("");
+    const [password, setPassword] = React.useState("");
+
+    function handleEmailSubmitEditing() {
         passwordInputRef.current?.focus();
     }
 
-    function onSubmit() {
-        // TODO: Submit form and navigate to protected screen if successful
-    }
+    const handleSubmit = React.useCallback(() => {
+        if (!email.trim() || !password || loading) {
+            return;
+        }
+        onSubmit(email.trim(), password);
+    }, [email, password, loading, onSubmit]);
+
+    const disableSubmit = loading || !email.trim() || !password;
 
     return (
         <AnimatedView>
@@ -32,10 +51,11 @@ export function SignUpForm() {
                 <Card className="border-border/0 sm:border-border shadow-none sm:shadow-sm sm:shadow-black/5">
                     <CardHeader>
                         <CardTitle className="text-center text-xl sm:text-left">
-                            Create your account
+                            Join SkyPocket!
                         </CardTitle>
                         <CardDescription className="text-center sm:text-left">
-                            Welcome! Please fill in the details to get started.
+                            Create your account to plan, track, and share every
+                            trip.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="gap-6">
@@ -48,7 +68,9 @@ export function SignUpForm() {
                                     keyboardType="email-address"
                                     autoComplete="email"
                                     autoCapitalize="none"
-                                    onSubmitEditing={onEmailSubmitEditing}
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    onSubmitEditing={handleEmailSubmitEditing}
                                     returnKeyType="next"
                                     submitBehavior="submit"
                                 />
@@ -62,11 +84,26 @@ export function SignUpForm() {
                                     id="password"
                                     secureTextEntry
                                     returnKeyType="send"
-                                    onSubmitEditing={onSubmit}
+                                    value={password}
+                                    onChangeText={setPassword}
+                                    onSubmitEditing={handleSubmit}
                                 />
                             </View>
-                            <Button className="w-full" onPress={onSubmit}>
-                                <Text>Continue</Text>
+                            {Boolean(errorMessage) && (
+                                <Text className="text-destructive text-sm">
+                                    {errorMessage}
+                                </Text>
+                            )}
+                            <Button
+                                className="w-full"
+                                onPress={handleSubmit}
+                                disabled={disableSubmit}
+                            >
+                                <Text>
+                                    {loading
+                                        ? "Creating account…"
+                                        : "Create account"}
+                                </Text>
                             </Button>
                         </View>
                         <View className="flex-row items-center">
@@ -75,7 +112,8 @@ export function SignUpForm() {
                                 variant="link"
                                 size="sm"
                                 className="text-lg"
-                                onPress={() => {}}
+                                onPress={onSwitch}
+                                disabled={loading}
                             >
                                 Sign in
                             </Button>
