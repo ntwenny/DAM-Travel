@@ -5,22 +5,22 @@ import { ThemeProvider } from "@react-navigation/native";
 import { NAV_THEME } from "@/theme";
 import { colorScheme } from "nativewind";
 import { CartProvider } from "@/context/cart-context";
+import { ToastProvider } from "@/hooks/useToast";
 export default function RootLayout() {
     colorScheme.set("dark");
 
     return (
         <CartProvider>
-            <ThemeProvider value={NAV_THEME.dark}>
-                <Stack
-                    screenOptions={{ headerShown: false }}
-                    initialRouteName="trip-selection"
-                >
-                    <Stack.Screen name="trip-selection" />
-                    <Stack.Screen name="(tabs)" />
-                    <Stack.Screen name="similar-products" />
-                </Stack>
-                <PortalHost />
-            </ThemeProvider>
+            <ToastProvider>
+                <ThemeProvider value={NAV_THEME.dark}>
+                    <Stack screenOptions={{ headerShown: false }}>
+                        <Stack.Screen name="trip-selection" />
+                        <Stack.Screen name="(tabs)" />
+                        <Stack.Screen name="similar-products" />
+                    </Stack>
+                    <PortalHost />
+                </ThemeProvider>
+            </ToastProvider>
         </CartProvider>
     );
 }

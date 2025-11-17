@@ -12,32 +12,53 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
-import { router } from "expo-router";
+import { CloudIcon } from "lucide-react-native";
 import * as React from "react";
-import { Pressable, type TextInput, View } from "react-native";
+import { type TextInput, View } from "react-native";
 
-export function SignInForm() {
+type SignInFormProps = {
+    onSubmit: (email: string, password: string) => Promise<void> | void;
+    onSwitch: () => void;
+    loading?: boolean;
+    errorMessage?: string | null;
+};
+
+export function SignInForm({
+    onSubmit,
+    onSwitch,
+    loading = false,
+    errorMessage,
+}: SignInFormProps) {
     const passwordInputRef = React.useRef<TextInput>(null);
+    const [email, setEmail] = React.useState("");
+    const [password, setPassword] = React.useState("");
 
-    function onEmailSubmitEditing() {
+    function handleEmailSubmitEditing() {
         passwordInputRef.current?.focus();
     }
 
-    function onSubmit() {
-        // TODO: Submit form and navigate to protected screen if successful
-        router.replace("/(tabs)/home")
-    }
+    const handleSubmit = React.useCallback(() => {
+        if (!email.trim() || !password || loading) {
+            return;
+        }
+        onSubmit(email.trim(), password);
+    }, [email, password, loading, onSubmit]);
+
+    const disableSubmit = loading || !email.trim() || !password;
 
     return (
         <AnimatedView>
             <View className="gap-6">
                 <Card className="border-border/0 sm:border-border shadow-none sm:shadow-sm sm:shadow-black/5">
                     <CardHeader>
-                        <CardTitle className="text-center text-xl sm:text-left">
-                            Sign in to your app
+                        <CardTitle className="text-center">
+                            <Text className="text-xl sm:text-left font-[Josefin_Bold]">
+                                Welcome back to SkyPocket!
+                            </Text>
                         </CardTitle>
                         <CardDescription className="text-center sm:text-left">
-                            Welcome back! Please sign in to continue
+                            Sign in with your email to jump back into your
+                            trips.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="gap-6">
@@ -50,7 +71,9 @@ export function SignInForm() {
                                     keyboardType="email-address"
                                     autoComplete="email"
                                     autoCapitalize="none"
-                                    onSubmitEditing={onEmailSubmitEditing}
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    onSubmitEditing={handleEmailSubmitEditing}
                                     returnKeyType="next"
                                     submitBehavior="submit"
                                 />
@@ -74,11 +97,24 @@ export function SignInForm() {
                                     id="password"
                                     secureTextEntry
                                     returnKeyType="send"
-                                    onSubmitEditing={onSubmit}
+                                    value={password}
+                                    onChangeText={setPassword}
+                                    onSubmitEditing={handleSubmit}
                                 />
                             </View>
-                            <Button className="w-full" onPress={onSubmit}>
-                                <Text>Continue</Text>
+                            {Boolean(errorMessage) && (
+                                <Text className="text-destructive text-sm">
+                                    {errorMessage}
+                                </Text>
+                            )}
+                            <Button
+                                className="w-full"
+                                onPress={handleSubmit}
+                                disabled={disableSubmit}
+                            >
+                                <Text>
+                                    {loading ? "Signing in…" : "Sign in"}
+                                </Text>
                             </Button>
                         </View>
 
@@ -88,7 +124,8 @@ export function SignInForm() {
                                 variant="link"
                                 size="sm"
                                 className="text-lg"
-                                onPress={() => {}}
+                                onPress={onSwitch}
+                                disabled={loading}
                             >
                                 Sign up
                             </Button>

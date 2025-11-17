@@ -11,12 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import {
     ArrowLeft,
-    ArrowUpRightFromCircleIcon,
     DollarSignIcon,
-    EarthIcon,
     InfoIcon,
     LockIcon,
-    ShipIcon,
     ShoppingBagIcon,
 } from "lucide-react-native";
 import {
@@ -25,32 +22,97 @@ import {
     ScrollView,
     TouchableOpacity,
     SafeAreaView,
+    ActivityIndicator,
 } from "react-native";
-import { router } from "expo-router";
-import { useFonts } from "expo-font";
-import { useEffect } from "react";
-const similarItems = [
-    {
-        id: "1",
-        source: "Amazon",
-        image: "https://via.placeholder.com/150",
-        isLocked: true,
-    },
-    {
-        id: "2",
-        source: "Target",
-        image: "https://via.placeholder.com/150",
-        isLocked: false,
-    },
-    {
-        id: "3",
-        source: "eBay",
-        image: "https://via.placeholder.com/150",
-        isLocked: true,
-    },
-];
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
+import { getTripItem, updateTripItem } from "@/lib/firebase";
+import { TripItem, ShoppingPage } from "@/types/user";
+import { useUser } from "@/hooks/useUser";
 
 export default function SimilarProductsScreen() {
+    const { user } = useUser();
+    const { tripId, tripItemId } = useLocalSearchParams<{
+        tripId: string;
+        tripItemId: string;
+    }>();
+    const [tripItem, setTripItem] = useState<TripItem | null>(null);
+    const [selectedPage, setSelectedPage] = useState<ShoppingPage | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!user || !tripId || !tripItemId) return;
+
+        async function fetchTripItem() {
+            try {
+                const data = await getTripItem(tripId, tripItemId);
+                setTripItem(data);
+
+                if (data.parsingStatus === "PARSED") {
+                    setLoading(false);
+                    if (!selectedPage) {
+                        const primaryPage =
+                            data._items?.pages?.find(
+                                (p: ShoppingPage) =>
+                                    p.productPage === data.productPage
+                            ) ||
+                            data._items?.pages?.[0] ||
+                            null;
+                        setSelectedPage(primaryPage);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch trip item", error);
+                setLoading(false);
+            }
+        }
+
+        fetchTripItem();
+    }, [user, tripId, tripItemId, selectedPage]);
+
+    const handleSelectSimilar = async (page: ShoppingPage) => {
+        setSelectedPage(page);
+        if (user && tripId && tripItemId) {
+            await updateTripItem(tripId, tripItemId, {
+                name: page.name,
+                price: page.extractedPrice,
+                thumbnail: page.thumbnail,
+                productPage: page.productPage,
+                source: page.source,
+            });
+        }
+    };
+
+    if (loading) {
+        return (
+            <SafeAreaView className="flex-1 bg-background justify-center items-center">
+                <ActivityIndicator size="large" color="white" />
+                <Text className="mt-4 text-lg">Analyzing your image...</Text>
+            </SafeAreaView>
+        );
+    }
+
+    if (!tripItem) {
+        return (
+            <SafeAreaView className="flex-1 bg-background justify-center items-center">
+                <Text className="text-lg text-destructive">
+                    Could not load item.
+                </Text>
+                <Button onPress={() => router.back()} className="mt-4">
+                    <Text>Go Back</Text>
+                </Button>
+            </SafeAreaView>
+        );
+    }
+
+    const displayItem = selectedPage || tripItem;
+    const similarItems = tripItem._items?.pages || [];
+
+    const displayItemPrice =
+        "price" in displayItem
+            ? (displayItem.price ?? 0)
+            : (displayItem.extractedPrice ?? 0);
+
     return (
         <SafeAreaView className="flex-1 bg-background">
             <ScrollView>
@@ -63,10 +125,10 @@ export default function SimilarProductsScreen() {
                     </TouchableOpacity>
 
                     <View className="p-5 text-center flex justify-center items-center">
-                        <Text className="text-3xl flex font-bold">
+                        <Text className="text-3xl  flex font-bold">
                             You're getting a{" "}
                         </Text>
-                        <Text className="text-3xl text-primary-foreground font-[JosefinSans-Bold]">
+                        <Text className="text-3xl text-primary-foreground font-[JosefinSans-Bold] italic">
                             STEAL!
                         </Text>
                     </View>
@@ -77,77 +139,39 @@ export default function SimilarProductsScreen() {
                                 <CardTitle className="">
                                     <View className="w-full flex-row justify-start items-center pb-2">
                                         <InfoIcon size={20} color="white" />
-                                        <Text className="mx-2 font-[JosefinSans-Bold] text-lg">
-                                            Hotdog Thermometer
+                                        <Text className="mx-2 text-lg font-bold">
+                                            {displayItem.name}
                                         </Text>
                                     </View>
-                                    <View className=" flex flex-row flex-wrap gap-x-2 gap-y-1 rounded-xl px-2 py-1 mt-2">
-                                        <Badge className="text-sm">
-                                            <DollarSignIcon
-                                                size={16}
-                                                className="mr-1"
-                                                color="white"
-                                            />
-                                            <Text>On Sale</Text>
-                                        </Badge>
-                                        <Badge
-                                            className="text-sm"
-                                            variant="secondary"
-                                        >
-                                            <ShipIcon
-                                                size={16}
-                                                className="mr-1"
-                                                color="white"
-                                            />
-                                            <Text>Free Shipping</Text>
-                                        </Badge>
-                                        <Badge
-                                            className="text-sm mr-2 mb-2"
-                                            variant="default"
-                                        >
-                                            <EarthIcon
-                                                size={16}
-                                                className="mr-1"
-                                                color="white"
-                                            />
-                                            <Text>Internationally Shipped</Text>
-                                        </Badge>
+                                    <View className="border-border border-2 flex flex-row flex-wrap rounded-xl px-2 py-1 mt-2">
+                                        {selectedPage?.extensions?.map(
+                                            (ext, index) => (
+                                                <Badge
+                                                    key={index}
+                                                    className="text-sm mr-2 mb-2"
+                                                    variant="secondary"
+                                                >
+                                                    <Text>{ext}</Text>
+                                                </Badge>
+                                            )
+                                        )}
                                     </View>
                                 </CardTitle>
                             </View>
                         </CardHeader>
                         <CardContent>
-                            <View className="relative w-full h-40">
-                                <View className="absolute inset-0 flex items-center justify-center">
-                                    <View className="absolute w-36 h-36 rounded-full bg-primary opacity-30 -left-8" />
-                                    <View className="absolute w-44 h-44 rounded-full bg-primary opacity-20 right-8" />
-                                    <View className="absolute w-28 h-28 rounded-full bg-primary opacity-25 -bottom-6" />
-                                    <Image
-                                        source={{
-                                            uri: "https://via.placeholder.com/120",
-                                        }}
-                                        className="w-28 h-28 rounded-full z-10"
-                                        resizeMode="cover"
-                                    />
-                                </View>
-                            </View>
+                            <Image
+                                source={{
+                                    uri:
+                                        displayItem.thumbnail ||
+                                        "https://via.placeholder.com/300",
+                                }}
+                                className="w-full h-48 rounded-lg"
+                            />
+                            <Text className="text-2xl font-bold text-center my-2">
+                                ${displayItemPrice.toFixed(2)}
+                            </Text>
                         </CardContent>
-                        <CardFooter className="justify-between items-center">
-                            <View className="flex flex-row items-center">
-                                <DollarSignIcon size={20} color="white" />
-                                <Text className="text-xl font-light text-center my-2">
-                                    200
-                                </Text>
-                            </View>
-                            <Button variant="default">
-                                <ArrowUpRightFromCircleIcon
-                                    size={20}
-                                    className="text-primary-foreground mr-2"
-                                    color="white"
-                                />
-                                <Text className="font-bold">Add to Bag</Text>
-                            </Button>
-                        </CardFooter>
                     </Card>
 
                     <View className="mt-6">
@@ -158,31 +182,48 @@ export default function SimilarProductsScreen() {
                             horizontal
                             showsHorizontalScrollIndicator={false}
                         >
-                            {similarItems.map((item) => (
-                                <Card key={item.id} className="mr-4 w-40">
-                                    <CardContent className="p-2">
-                                        <Image
-                                            source={{ uri: item.image }}
-                                            className="w-full h-24 rounded-md"
-                                        />
-                                        {item.isLocked && (
-                                            <View className="absolute top-3 right-3 bg-backdrop-blur p-1 rounded-full">
-                                                <LockIcon
-                                                    size={16}
-                                                    color="white"
-                                                />
+                            {similarItems.map((item, index) => (
+                                <TouchableOpacity
+                                    key={index}
+                                    onPress={() => handleSelectSimilar(item)}
+                                >
+                                    <Card
+                                        className={`mr-4 w-40 ${
+                                            selectedPage?.productPage ===
+                                            item.productPage
+                                                ? "border-primary"
+                                                : "border-border"
+                                        }`}
+                                    >
+                                        <CardContent className="p-2">
+                                            <Image
+                                                source={{
+                                                    uri:
+                                                        item.thumbnail ||
+                                                        "https://via.placeholder.com/150",
+                                                }}
+                                                className="w-full h-24 rounded-md"
+                                            />
+                                            <View className="flex-row justify-between items-center mt-2">
+                                                <Text className="text-sm font-bold">
+                                                    {item.source}
+                                                </Text>
                                             </View>
-                                        )}
-                                        <View className="flex-row justify-between items-center mt-2">
-                                            <Text className="text-sm font-bold">
-                                                {item.source}
-                                            </Text>
-                                            <View className="w-4 h-4 rounded-full bg-blue-500" />
-                                        </View>
-                                    </CardContent>
-                                </Card>
+                                        </CardContent>
+                                    </Card>
+                                </TouchableOpacity>
                             ))}
                         </ScrollView>
+                    </View>
+
+                    <View className="mt-6">
+                        <Button>
+                            <ShoppingBagIcon
+                                size={20}
+                                className="text-primary-foreground mr-2"
+                            />
+                            <Text>Add to Bag</Text>
+                        </Button>
                     </View>
                 </View>
             </ScrollView>
