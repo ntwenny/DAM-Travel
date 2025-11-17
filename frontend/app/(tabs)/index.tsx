@@ -16,13 +16,21 @@ import {
 } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { useUser } from "@/hooks/useUser";
+import { uploadBytes, ref } from "firebase/storage";
+import { storage } from "@/lib/firebase";
+import { useRouter } from "expo-router";
+import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { firestore } from "@/lib/firebase";
 
 export default function ScanScreen() {
     const navigation = useNavigation();
+    const router = useRouter();
+    const { user, userProfile } = useUser();
     const [permission, requestPermission] = useCameraPermissions();
     const [facing, setFacing] = useState<CameraType>("back");
     const [photoUri, setPhotoUri] = useState<string | null>(null);
-    const [lastPicked, setLastPicked] = useState<string | null>(null);  
+    const [lastPicked, setLastPicked] = useState<string | null>(null);
     const mode: CameraMode = "picture";
     const cameraReference = useRef<CameraView>(null);
 
@@ -41,10 +49,50 @@ export default function ScanScreen() {
     }
 
     async function takePicture() {
-        if (cameraReference.current) {
+        if (cameraReference.current && user && userProfile?.currentTripId) {
             const photo = await cameraReference.current.takePictureAsync();
             console.log("Photo taken:", photo.uri);
             setPhotoUri(photo.uri);
+
+            const tripItemId = Date.now().toString();
+            const response = await fetch(photo.uri);
+            const blob = await response.blob();
+            const storageRef = ref(
+                storage,
+                `users/${user.uid}/${userProfile.currentTripId}/${tripItemId}.jpg`
+            );
+            await uploadBytes(storageRef, blob);
+
+            const userDocRef = doc(firestore, "users", user.uid);
+            const tripItem = {
+                id: tripItemId,
+                photo: "",
+                description: "",
+                date: new Date().toISOString(),
+                price: 0,
+                parsingStatus: "PARSING",
+                rawDetectionData: null,
+            };
+
+            const trips = userProfile.trips.map((trip) => {
+                if (trip.id === userProfile.currentTripId) {
+                    return {
+                        ...trip,
+                        items: arrayUnion(tripItem),
+                    };
+                }
+                return trip;
+            });
+
+            await updateDoc(userDocRef, { trips });
+
+            router.push({
+                pathname: "/similar-products",
+                params: {
+                    tripId: userProfile.currentTripId,
+                    tripItemId: tripItemId,
+                },
+            });
         }
     }
 
@@ -59,7 +107,7 @@ export default function ScanScreen() {
             const uri = result.assets[0].uri;
             console.log("Picked image:", uri);
             setPhotoUri(uri);
-            setLastPicked(uri); 
+            setLastPicked(uri);
         }
     }
 
@@ -71,7 +119,11 @@ export default function ScanScreen() {
         <View className="flex-1 bg-background">
             {!permission?.granted && (
                 <View className="flex-1 items-center justify-center m-safe-offset-5">
-                    <CameraOffIcon size={64} color="#FFFFFF" strokeWidth={0.75} />
+                    <CameraOffIcon
+                        size={64}
+                        color="#FFFFFF"
+                        strokeWidth={0.75}
+                    />
                     <Text className="mb-4 text-foreground font-bold pt-5">
                         Please Allow Camera Access
                     </Text>
@@ -79,7 +131,9 @@ export default function ScanScreen() {
                         className="rounded bg-primary border-muted border-2 px-4 py-2"
                         onPress={requestPermission}
                     >
-                        <Text className="font-semibold text-white">Grant Permission</Text>
+                        <Text className="font-semibold text-white">
+                            Grant Permission
+                        </Text>
                     </Pressable>
                 </View>
             )}
@@ -101,14 +155,22 @@ export default function ScanScreen() {
                         }}
                         className="absolute top-12 left-5 bg-black/40 p-3 rounded-full z-20"
                     >
-                        <ArrowLeftIcon color="white" size={24} strokeWidth={2} />
+                        <ArrowLeftIcon
+                            color="white"
+                            size={24}
+                            strokeWidth={2}
+                        />
                     </Pressable>
 
                     <Pressable
                         onPress={toggleCameraFacing}
                         className="absolute top-12 right-10 bg-primary p-4 rounded-full border-2 border-white"
                     >
-                        <RefreshCcwIcon color="white" size={24} strokeWidth={2} />
+                        <RefreshCcwIcon
+                            color="white"
+                            size={24}
+                            strokeWidth={2}
+                        />
                     </Pressable>
 
                     <Pressable
@@ -123,7 +185,11 @@ export default function ScanScreen() {
                             />
                         ) : (
                             <View className="flex-1 items-center justify-center">
-                                <ImageIcon color="black" size={24} strokeWidth={2} />
+                                <ImageIcon
+                                    color="black"
+                                    size={24}
+                                    strokeWidth={2}
+                                />
                             </View>
                         )}
                     </Pressable>
@@ -150,14 +216,18 @@ export default function ScanScreen() {
                             onPress={retakePicture}
                             className="bg-gray-700 px-4 py-2 rounded-lg"
                         >
-                            <Text className="text-white font-semibold">Retake</Text>
+                            <Text className="text-white font-semibold">
+                                Retake
+                            </Text>
                         </Pressable>
 
                         <Pressable
-                            onPress={() => console.log("Ready to upload:", photoUri)}
+                            onPress={takePicture}
                             className="bg-primary px-4 py-2 rounded-lg"
                         >
-                            <Text className="text-white font-semibold">Save / Upload</Text>
+                            <Text className="text-white font-semibold">
+                                Save / Upload
+                            </Text>
                         </Pressable>
                     </View>
                 </View>

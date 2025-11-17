@@ -138,7 +138,12 @@ export default function FinanceScreen() {
     }
 
     return (
+<<<<<<< HEAD
         <SafeAreaView className="flex-1 bg-background">
+=======
+        <SafeAreaView className="flex-1 bg-gray-50">
+
+>>>>>>> b1dc131 (feat: enhance home screen with trip items carousel and budget management)
             <ScrollView
                 className="p-4"
                 contentInsetAdjustmentBehavior="never"
@@ -148,15 +153,15 @@ export default function FinanceScreen() {
                 showsVerticalScrollIndicator={true}
             >
 
-                <View className="items-center mb-5 shadow-sm">
-                    <View className="rounded-xl bg-card border border-border sha p-4 w-full items-center">
+                <View className="items-center mb-5">
+                    <View className="rounded-lg bg-gray-200 border border-gray-200 p-4 w-full items-center">
                         {(() => {
                             const remaining = Math.max(budget - totalSpent, 0);
                             const data = [
                                 {
                                     name: "Spent",
                                     population: Math.max(totalSpent, 0),
-                                    color: percent >= 1 ? "#99d1f5ff" : "#e3f3ffff",
+                                    color: percent >= 1 ? "#99d1f5ff" : "#aadbffff",
                                     legendFontColor: "#000",
                                     legendFontSize: 12,
                                 },
@@ -200,8 +205,8 @@ export default function FinanceScreen() {
                                     <View className="w-full flex-row items-center justify-between px-2 mb-2">
                                         <View style={{ width: 40 }} />
                                         <View className="items-center">
-                                            <Text className="text-sm text-muted-foreground">Budget</Text>
-                                            <Text className="text-lg font-semibold text-foreground">${Number(budget).toFixed(2)}</Text>
+                                            <Text className="text-sm text-gray-700">Budget</Text>
+                                            <Text className="text-lg font-semibold">${Number(budget).toFixed(2)}</Text>
                                         </View>
                                         <Pressable
                                             onPress={() => { setBudgetEditValue(String(budget)); setBudgetEditModalVisible(true); }}
@@ -217,8 +222,8 @@ export default function FinanceScreen() {
                                         onLayout={(e) => setOverlayHeight(e.nativeEvent.layout.height)}
                                         style={{ position: 'absolute', top: Math.max(0, (chartHeight - overlayHeight) / 2), alignSelf: 'center', backgroundColor: 'rgba(255,255,255,0.75)' }}
                                     >
-                                        <Text className="text-xl font-semibold ">${Math.max(remaining, 0).toFixed(2)} </Text>
-                                        <Text className="text-sm">Remaining</Text>
+                                        <Text className="text-xl font-semibold">${Math.max(remaining, 0).toFixed(2)}</Text>
+                                        <Text className="text-sm text-black">Remaining</Text>
                                     </View>
 
                                     {/* Legend row: Spent and Remaining */}
@@ -226,16 +231,16 @@ export default function FinanceScreen() {
                                         <View className="flex-row mr-2 items-center">
                                             <View style={{ width: 10, height: 10, borderRadius: 6, backgroundColor: data[0].color }} />
                                             <View className="ml-2">
-                                                <Text className="text-sm text-foreground">Spent</Text>
-                                                <Text className="text-sm text-foreground font-semibold">${Math.max(totalSpent, 0).toFixed(2)}</Text>
+                                                <Text className="text-sm text-gray-700">Spent</Text>
+                                                <Text className="text-sm font-semibold">${Math.max(totalSpent, 0).toFixed(2)}</Text>
                                             </View>
                                         </View>
 
                                         <View className="flex-row ml-2 items-center">
                                             <View style={{ width: 10, height: 10, borderRadius: 6, backgroundColor: data[1].color }} />
                                             <View className="ml-2">
-                                                <Text className="text-sm text-foreground">Remaining</Text>
-                                                <Text className="text-sm text-foreground font-semibold">${remaining.toFixed(2)}</Text>
+                                                <Text className="text-sm text-gray-700">Remaining</Text>
+                                                <Text className="text-sm font-semibold">${remaining.toFixed(2)}</Text>
                                             </View>
                                         </View>
                                     </View>
@@ -259,14 +264,14 @@ export default function FinanceScreen() {
 
                 {/* Search bar for categories */}
                 <View className="mb-5 w-full">
-                    <View className="flex-row items-center bg-card border border-border rounded-full px-3 py-2">
+                    <View className="flex-row items-center bg-white border border-gray-300 rounded-full px-3 py-2">
                         <Search size={16} color="#9CA3AF" />
                         <TextInput
                             value={searchQuery}
                             onChangeText={setSearchQuery}
                             placeholder="Search categories"
                             placeholderTextColor="#9CA3AF"
-                            className="ml-2 flex-1 text-foreground"
+                            className="ml-2 flex-1 text-black"
                         />
                     </View>
                 </View>
@@ -284,24 +289,24 @@ export default function FinanceScreen() {
                             onPress={() => setModalVisible(false)}
                         >
                             {/* inner Pressable consumes taps so backdrop onPress won't fire when tapping the card */}
-                            <Pressable onPress={() => { }} className="bg-card p-4 rounded-lg border border-border w-full" style={{ maxWidth: 520 }}>
+                            <Pressable onPress={() => { }} className="bg-white p-4 rounded-lg border border-gray-200 w-full" style={{ maxWidth: 520 }}>
                                 <Text className="text-lg font-semibold mb-2">Add new transaction</Text>
 
-                                <Text className="text-sm text-muted-foreground">Enter Amount</Text>
+                                <Text className="text-sm text-gray-700">Enter Amount</Text>
                                 <TextInput
                                     keyboardType="numeric"
                                     value={txAmount}
                                     onChangeText={setTxAmount}
-                                    className="rounded border border-border px-3 py-2 text-foreground bg-card mb-3"
+                                    className="rounded border border-gray-200 px-3 py-2 text-black bg-white mb-3"
                                     placeholder="0.00"
                                     placeholderTextColor="#9CA3AF"
                                 />
 
-                                <Text className="text-sm text-muted-foreground">Transaction Description</Text>
+                                <Text className="text-sm text-gray-700">Transaction Description</Text>
                                 <TextInput
                                     value={txDesc}
                                     onChangeText={setTxDesc}
-                                    className="rounded border border-border px-3 py-2 text-foreground bg-card mb-3"
+                                    className="rounded border border-gray-200 px-3 py-2 text-black bg-white mb-3"
                                     placeholder="Optional description"
                                     placeholderTextColor="#9CA3AF"
                                 />
@@ -313,9 +318,9 @@ export default function FinanceScreen() {
                                             <Pressable
                                                 key={c.id}
                                                 onPress={() => { setSelectedCategoryId(c.id); setNewCategoryName(""); }}
-                                                className={`px-3 py-2 mr-2 rounded-full ${selectedCategoryId === c.id ? 'bg-primary' : 'bg-popover'}`}
+                                                className={`px-3 py-2 mr-2 rounded-full ${selectedCategoryId === c.id ? 'bg-primary' : 'bg-gray-100'}`}
                                             >
-                                                <Text className={`${selectedCategoryId === c.id ? 'text-primary-foreground' : 'text-foreground'}`}>{c.name}</Text>
+                                                <Text className={`${selectedCategoryId === c.id ? 'text-white' : 'text-black'}`}>{c.name}</Text>
                                             </Pressable>
                                         ))}
                                     </ScrollView>
@@ -323,7 +328,7 @@ export default function FinanceScreen() {
                                     <TextInput
                                         value={newCategoryName}
                                         onChangeText={(t) => { setNewCategoryName(t); if (t.trim() !== '') setSelectedCategoryId(null); }}
-                                        className="rounded border border-border px-3 py-2 text-foreground bg-card"
+                                        className="rounded border border-gray-200 px-3 py-2 text-black bg-white"
                                         placeholder="Or type a new category name"
                                         placeholderTextColor="#9CA3AF"
                                     />
@@ -331,10 +336,10 @@ export default function FinanceScreen() {
 
                                 <View className="flex-row justify-end">
                                     <Pressable onPress={() => setModalVisible(false)} className="px-4 py-2 mr-2">
-                                        <Text className="text-foreground">Cancel</Text>
+                                        <Text className="text-black">Cancel</Text>
                                     </Pressable>
                                     <Pressable onPress={saveTransaction} className="bg-primary px-4 py-2 rounded">
-                                        <Text className="text-primary-foreground font-semibold">Save</Text>
+                                        <Text className="text-white font-semibold">Save</Text>
                                     </Pressable>
                                 </View>
                             </Pressable>
@@ -389,7 +394,7 @@ export default function FinanceScreen() {
                                 const left = Math.min(Math.max(8, menuPosition.x - menuW + 24), screenW - menuW - 8);
                                 const top = menuPosition.y + 8;
                                 return (
-                                    <View style={{ position: 'absolute', left, top, width: menuW, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 6, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, elevation: 6, backgroundColor: 'rgb(var(--card))' }}>
+                                    <View style={{ position: 'absolute', left, top, width: menuW, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 6, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, elevation: 6, backgroundColor: '#fff' }}>
                                         <Pressable
                                             onPress={() => {
                                                 const cat = categories.find(c => c.id === menuOpenFor);
@@ -403,7 +408,7 @@ export default function FinanceScreen() {
                                             style={({ pressed }) => [{ backgroundColor: pressed ? '#f3f4f6' : 'transparent', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 6 }]}
                                             className="hover:bg-gray-100"
                                         >
-                                            <Text className="text-foreground">Edit items</Text>
+                                            <Text className="text-black">Edit items</Text>
                                         </Pressable>
 
                                         <Pressable
@@ -411,7 +416,7 @@ export default function FinanceScreen() {
                                             style={({ pressed }) => [{ backgroundColor: pressed ? '#fee2e2' : 'transparent', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 6, marginTop: 6 }]}
                                             className="hover:bg-red-50"
                                         >
-                                            <Text style={{ color: 'rgb(var(--destructive))' }}>Delete category</Text>
+                                            <Text style={{ color: '#dc2626' }}>Delete category</Text>
                                         </Pressable>
                                     </View>
                                 );
@@ -428,37 +433,37 @@ export default function FinanceScreen() {
                     onRequestClose={() => setEditModalVisible(false)}
                 >
                     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1 justify-end">
-                        <View className="bg-card p-4 rounded-t-xl border-t border-border">
+                        <View className="bg-white p-4 rounded-t-xl border-t border-gray-200">
                             <Text className="text-lg font-semibold mb-2">Edit items</Text>
 
                             {editItems.map((it, idx) => (
                                 <View key={it.id} className="mb-3">
-                                    <Text className="text-sm text-muted-foreground">Name</Text>
+                                    <Text className="text-sm text-gray-700">Name</Text>
                                     <TextInput
                                         value={it.name}
                                         onChangeText={(v) => setEditItems((prev) => prev.map((e, i) => i === idx ? { ...e, name: v } : e))}
-                                        className="rounded border border-border px-3 py-2 text-foreground bg-card mb-1"
+                                        className="rounded border border-gray-200 px-3 py-2 text-black bg-white mb-1"
                                     />
-                                    <Text className="text-sm text-muted-foreground">Amount</Text>
+                                    <Text className="text-sm text-gray-700">Amount</Text>
                                     <TextInput
                                         value={String(it.amount)}
                                         keyboardType="numeric"
                                         onChangeText={(v) => setEditItems((prev) => prev.map((e, i) => i === idx ? { ...e, amount: parseFloat(v) || 0 } : e))}
-                                        className="rounded border border-border px-3 py-2 text-foreground bg-card"
+                                        className="rounded border border-gray-200 px-3 py-2 text-black bg-white"
                                     />
                                 </View>
                             ))}
 
                             <View className="flex-row justify-end">
                                 <Pressable onPress={() => setEditModalVisible(false)} className="px-4 py-2 mr-2">
-                                    <Text className="text-foreground">Cancel</Text>
+                                    <Text className="text-black">Cancel</Text>
                                 </Pressable>
                                 <Pressable onPress={() => {
                                     if (!editingCategoryId) return setEditModalVisible(false);
                                     setCategories((prev) => prev.map((c) => c.id === editingCategoryId ? { ...c, items: editItems } : c));
                                     setEditModalVisible(false);
                                 }} className="bg-primary px-4 py-2 rounded">
-                                    <Text className="text-primary-foreground font-semibold">Save</Text>
+                                    <Text className="text-white font-semibold">Save</Text>
                                 </Pressable>
                             </View>
                         </View>
@@ -467,16 +472,16 @@ export default function FinanceScreen() {
 
                 {/* List of categories */}
                 {filteredCategories.map((cat) => (
-                    <View key={cat.id} className=" mb-4 rounded-md border-border bg-card border border-border shadow-sm">
-                        <View className="bg-primary rounded-tl-md rounded-tr-md px-2 py-3 flex-row justify-between items-center mb-2">
+                    <View key={cat.id} className=" mb-4 rounded-md border-gray-300 bg-white border border-gray-100 shadow-sm">
+                        <View className="bg-blue-500 rounded-tl-md rounded-tr-md px-2 py-3 flex-row justify-between items-center mb-2">
 
                             {/* Category name (left) and actions (right: price + three-dots) */}
                             <View className="flex-row items-center">
-                                <Text className="text-primary-foreground text-lg mr-3">{cat.name}</Text>
+                                <Text className="text-white text-lg mr-3">{cat.name}</Text>
                             </View>
 
                             <View className="flex-row items-center">
-                                <Text className="text-primary-foreground text-lg mr-2">${cat.items.reduce((s, it) => s + it.amount, 0).toFixed(2)}</Text>
+                                <Text className="text-white text-lg mr-2">${cat.items.reduce((s, it) => s + it.amount, 0).toFixed(2)}</Text>
                                 <Pressable
                                     onPressIn={(e: any) => {
                                         const { pageX, pageY } = e.nativeEvent;
@@ -485,7 +490,7 @@ export default function FinanceScreen() {
                                     }}
                                     className="px-2 py-1"
                                 >
-                                    <Text className="text-primary-foreground text-sm">⋯</Text>
+                                    <Text className="text-white text-sm">⋯</Text>
                                 </Pressable>
                             </View>
                         </View>
@@ -495,15 +500,15 @@ export default function FinanceScreen() {
                         )}
                         {/* List of items */}
                         {cat.items.map((it) => (
-                            <View key={it.id} className="flex-row justify-between items-center mb-2 border-s mx-3 border-accent px-2">
+                            <View key={it.id} className="flex-row justify-between items-center mb-2 border-s mx-3 border-blue-500 px-2">
                                 {/* Item details */}
                                 <View>
-                                    <Text className="text-foreground text-[17px]">{it.name}</Text>
-                                    <Text className="text-muted-foreground text-sm mt-1">{new Date(it.timestamp ?? 0).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</Text>
+                                    <Text className="text-black text-[17px]">{it.name}</Text>
+                                    <Text className="text-gray-500 text-sm mt-1">{new Date(it.timestamp ?? 0).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</Text>
                                 </View>
                                 <View className="flex-row items-center">
                                     {/* Item amount and delete button */}
-                                    <Text className="text-foreground text-[17px]"> $ {String(it.amount)} </Text>
+                                    <Text className="text-black text-[17px]"> $ {String(it.amount)} </Text>
                                     <Pressable onPress={() => confirmDeleteItem(cat.id, it.id)} className="ml-2 p-2">
                                         <Trash2 size={14} color="#ef4444" />
                                     </Pressable>

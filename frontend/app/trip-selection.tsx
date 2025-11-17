@@ -4,6 +4,7 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
+    type Option as SelectOption,
 } from "@/components/ui/select";
 import { Text } from "@/components/ui/text";
 import {
@@ -18,10 +19,17 @@ import {
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SafeAreaView, View, TouchableOpacity } from "react-native";
+import {
+    SafeAreaView,
+    View,
+    TouchableOpacity,
+    Modal,
+    TextInput,
+    ActivityIndicator,
+} from "react-native";
 import { Button } from "@/components/ui/button";
 import { SignInForm } from "@/components/sign-in-form";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { SignUpForm } from "@/components/sign-up-form";
 import Animated, {
     useSharedValue,
@@ -30,12 +38,17 @@ import Animated, {
     withSequence,
     withTiming,
 } from "react-native-reanimated";
+import { FirebaseError } from "firebase/app";
+import type { User } from "firebase/auth";
+import {
+    createTrip,
+    getTrips,
+    observeAuthState,
+    signInWithEmail,
+    signUpWithEmail,
+} from "../lib/firebase";
 
-const trips = [
-    { label: "Summer Vacation to Hawaii", value: "hawaii" },
-    { label: "Business Trip to New York", value: "nyc" },
-    { label: "Weekend Getaway to Paris", value: "paris" },
-];
+type TripOption = NonNullable<SelectOption>;
 
 const starPositions = [
     { leftPct: 0.06, topPct: 0.08, size: 3, opacity: 0.9 },
@@ -106,8 +119,139 @@ function Stars() {
 }
 
 export default function TripSelectionScreen() {
-    const [tabState, setTabState] = useState("sign-in");
-    const [isSignedIn, setIsSignedIn] = useState(true);
+    const [tabState, setTabState] = useState<"sign-in" | "sign-up">("sign-in");
+    const [user, setUser] = useState<User | null>(null);
+    const [authReady, setAuthReady] = useState(false);
+    const [authBusy, setAuthBusy] = useState(false);
+    const [authError, setAuthError] = useState<string | null>(null);
+    const [tripsState, setTripsState] = useState<TripOption[]>([]);
+    const [tripsError, setTripsError] = useState<string | null>(null);
+    const [loadingTrips, setLoadingTrips] = useState(false);
+    const [selectedTrip, setSelectedTrip] = useState<TripOption | undefined>();
+    const [createVisible, setCreateVisible] = useState(false);
+    const [creatingTrip, setCreatingTrip] = useState(false);
+    const [newTripName, setNewTripName] = useState("");
+    const [isSigningUp, setIsSigningUp] = useState(false);
+
+    const loadTrips = useCallback(async () => {
+        setLoadingTrips(true);
+        setTripsError(null);
+        try {
+            const trips = await getTrips();
+            const list: TripOption[] = (trips || []).map((t: any) => ({
+                label: t.name || "Untitled",
+                value: t.id,
+            }));
+            setTripsState(list);
+            setSelectedTrip(
+                (prev) =>
+                    list.find(
+                        (item) => item && prev && item.value === prev.value
+                    ) ?? list[0]
+            );
+        } catch (err) {
+            console.error("Failed to load trips", err);
+            setTripsError(
+                "We couldn't load your trips. Try again in a moment."
+            );
+            setTripsState([]);
+            setSelectedTrip(undefined);
+        } finally {
+            setLoadingTrips(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        const unsubscribe = observeAuthState((current) => {
+            setUser(current);
+            setAuthReady(true);
+            if (current) {
+                // When a user is available, load their trips.
+                loadTrips();
+            } else {
+                // Clear trip data when the user signs out.
+                setTripsState([]);
+                setSelectedTrip(undefined);
+                setLoadingTrips(false);
+            }
+        });
+        return unsubscribe;
+    }, [loadTrips]);
+
+    const handleSignIn = useCallback(
+        async (email: string, password: string) => {
+            setAuthBusy(true);
+            setAuthError(null);
+            try {
+                await signInWithEmail(email, password);
+            } catch (err) {
+                console.error("Sign in failed", err);
+                setAuthError(authErrorMessage(err));
+            } finally {
+                setAuthBusy(false);
+            }
+        },
+        []
+    );
+
+    const handleSignUp = useCallback(
+        async (email: string, password: string) => {
+            setAuthBusy(true);
+            setAuthError(null);
+            setIsSigningUp(true);
+            try {
+                await signUpWithEmail(email, password);
+                // The `observeAuthState` listener will handle the post-signup flow.
+            } catch (err) {
+                console.error("Sign up failed", err);
+                setAuthError(authErrorMessage(err));
+                setIsSigningUp(false); // Reset on failure
+            } finally {
+                setAuthBusy(false);
+            }
+        },
+        []
+    );
+
+    const handleCreateTrip = useCallback(async () => {
+        const trimmedName = newTripName.trim();
+        if (!trimmedName) {
+            setTripsError("Trip name cannot be empty.");
+            return;
+        }
+        setCreatingTrip(true);
+        setTripsError(null);
+        try {
+            await createTrip({ name: trimmedName });
+            setCreateVisible(false);
+            setNewTripName("");
+            await loadTrips();
+        } catch (err) {
+            console.error("Failed to create trip", err);
+            setTripsError(
+                (err as Error)?.message ||
+                    "We couldn't create that trip just yet."
+            );
+        } finally {
+            setCreatingTrip(false);
+        }
+    }, [loadTrips, newTripName]);
+
+    const isSignedIn = Boolean(user);
+    const displayName = user?.displayName || user?.email || "Traveler";
+    const disablePrimaryAction =
+        loadingTrips || !selectedTrip?.value || tripsError !== null;
+
+    const showAuthOverlay = authReady && !isSignedIn;
+    const showAuthForm = authReady && !isSignedIn && !isSigningUp;
+
+    function handleTabChange(next: string) {
+        if (next === "sign-in" || next === "sign-up") {
+            setTabState(next);
+            setAuthError(null);
+        }
+    }
+
     return (
         <SafeAreaView className="flex-1 bg-background">
             <Stars />
@@ -146,8 +290,7 @@ export default function TripSelectionScreen() {
             >
                 <Cloud size={100} color="gray" fill="gray" />
             </View>
-
-            {isSignedIn && (
+            {authReady && isSignedIn && (
                 <View
                     style={{
                         flex: 1,
@@ -157,45 +300,97 @@ export default function TripSelectionScreen() {
                     }}
                 >
                     <Text className="text-2xl font-[JosefinSans-Bold] mb-4">
-                        Welcome back, John Doe
+                        Welcome back, {displayName}
                     </Text>
 
-                    <Select>
+                    <Select
+                        value={selectedTrip}
+                        onValueChange={setSelectedTrip}
+                        disabled={loadingTrips || tripsState.length === 0}
+                    >
                         <SelectTrigger className="w-full">
                             <SelectValue
                                 className="text-muted-foreground"
-                                placeholder="Select a trip"
+                                placeholder={
+                                    loadingTrips
+                                        ? "Loading trips…"
+                                        : tripsState.length === 0
+                                          ? "No trips yet"
+                                          : "Select a trip"
+                                }
                             />
                         </SelectTrigger>
                         <SelectContent>
-                            {trips.map((trip) => (
+                            {loadingTrips && (
                                 <SelectItem
-                                    key={trip.value}
-                                    label={trip.label}
-                                    value={trip.value}
+                                    disabled
+                                    label="Loading"
+                                    value="loading"
                                 >
-                                    {trip.label}
+                                    Loading trips…
                                 </SelectItem>
-                            ))}
+                            )}
+                            {!loadingTrips &&
+                                tripsState.map((trip) => (
+                                    <SelectItem
+                                        key={trip.value}
+                                        label={trip.label}
+                                        value={trip.value}
+                                    >
+                                        {trip.label}
+                                    </SelectItem>
+                                ))}
                         </SelectContent>
                     </Select>
 
-                    <Button
-                        className="mt-10 font-bold flex flex-row items-center justify-center"
-                        onPress={() => router.push("/(tabs)/home")}
+                    {tripsError && (
+                        <View className="mt-3 text-center items-center">
+                            <Text className="text-destructive text-sm">
+                                {tripsError}
+                            </Text>
+                            <Button
+                                variant="link"
+                                className="mt-1"
+                                onPress={loadTrips}
+                            >
+                                <Text>Try again</Text>
+                            </Button>
+                        </View>
+                    )}
+
+                    <View
+                        style={{ flexDirection: "row", gap: 12, marginTop: 24 }}
                     >
-                        <PlaneLandingIcon color="white" className="mr-2" />
-                        <Text>Let's Go!</Text>
-                    </Button>
+                        <Button
+                            className="font-bold flex flex-row items-center justify-center"
+                            onPress={() => router.push("/(tabs)/home")}
+                            disabled={disablePrimaryAction}
+                        >
+                            <PlaneLandingIcon color="white" className="mr-2" />
+                            <Text>
+                                {disablePrimaryAction
+                                    ? "Select a trip"
+                                    : "Let's Go!"}
+                            </Text>
+                        </Button>
+
+                        <Button
+                            variant="secondary"
+                            className="ml-3"
+                            onPress={() => setCreateVisible(true)}
+                        >
+                            <Text>Create Trip</Text>
+                        </Button>
+                    </View>
                 </View>
             )}
-            {!isSignedIn && (
+            {showAuthOverlay && (
                 <View className="absolute bg-black opacity-30 inset-0" />
             )}
 
-            {!isSignedIn && (
+            {showAuthForm && (
                 <View className=" flex flex-col gap-y-2 p-5 z-10">
-                    <Tabs value={tabState} onValueChange={setTabState}>
+                    <Tabs value={tabState} onValueChange={handleTabChange}>
                         <TabsList>
                             <TabsTrigger value="sign-in">
                                 <Text>Sign In</Text>
@@ -205,7 +400,21 @@ export default function TripSelectionScreen() {
                             </TabsTrigger>
                         </TabsList>
                     </Tabs>
-                    {tabState == "sign-in" ? <SignInForm /> : <SignUpForm />}
+                    {tabState === "sign-in" ? (
+                        <SignInForm
+                            onSubmit={handleSignIn}
+                            onSwitch={() => handleTabChange("sign-up")}
+                            loading={authBusy}
+                            errorMessage={authError}
+                        />
+                    ) : (
+                        <SignUpForm
+                            onSubmit={handleSignUp}
+                            onSwitch={() => handleTabChange("sign-in")}
+                            loading={authBusy}
+                            errorMessage={authError}
+                        />
+                    )}
                 </View>
             )}
 
@@ -229,6 +438,61 @@ export default function TripSelectionScreen() {
             >
                 <Cloud size={90} color="white" fill="white" />
             </View>
+            <Modal visible={createVisible} animationType="slide" transparent>
+                <View className="flex-1 bg-black/50 justify-center items-center">
+                    <View className="w-11/12 bg-slate-900 p-4 rounded-lg">
+                        <Text className="text-lg font-[JosefinSans-Bold] mb-2 text-white">
+                            Create Trip
+                        </Text>
+                        <TextInput
+                            placeholder="Trip name"
+                            placeholderTextColor="#94a3b8"
+                            value={newTripName}
+                            onChangeText={setNewTripName}
+                            className="bg-white/10 text-white p-2 rounded-md mb-3"
+                        />
+                        <View className="flex-row justify-end">
+                            <Button
+                                variant="ghost"
+                                onPress={() => setCreateVisible(false)}
+                            >
+                                <Text>Cancel</Text>
+                            </Button>
+                            <Button
+                                onPress={handleCreateTrip}
+                                className="ml-2"
+                                disabled={creatingTrip}
+                            >
+                                <Text>
+                                    {creatingTrip ? "Creating…" : "Create"}
+                                </Text>
+                            </Button>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
+}
+
+function authErrorMessage(error: unknown) {
+    if (error instanceof FirebaseError) {
+        switch (error.code) {
+            case "auth/invalid-credential":
+            case "auth/wrong-password":
+                return "That email and password combo didn't work. Double-check and try again.";
+            case "auth/user-not-found":
+                return "We couldn't find an account with that email.";
+            case "auth/email-already-in-use":
+                return "An account with that email already exists. Try signing in instead.";
+            case "auth/weak-password":
+                return "Choose a stronger password (at least 6 characters).";
+            default:
+                return "Something went wrong. Please try again.";
+        }
+    }
+    if (typeof error === "object" && error && "message" in error) {
+        return String((error as { message?: string }).message);
+    }
+    return "Something went wrong. Please try again.";
 }
