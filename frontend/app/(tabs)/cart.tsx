@@ -34,13 +34,13 @@ export default function CartScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#f3f5f9]">
+    <SafeAreaView className="flex-1 bg-background">
       <ScrollView contentContainerClassName="p-4 pb-24" showsVerticalScrollIndicator={false}>
         <View className="mb-5 flex-row items-center justify-between">
-          <Text className="text-3xl font-semibold text-[#0d2645]">Cart</Text>
+          <Text className="text-3xl font-semibold text-foreground">Cart</Text>
           {cartItems.length > 0 && (
             <Pressable onPress={clearCart}>
-              <Text className="text-sm font-semibold text-rose-500">Clear All</Text>
+              <Text className="text-sm font-semibold text-muted-foreground">Clear All</Text>
             </Pressable>
           )}
         </View>
@@ -48,7 +48,7 @@ export default function CartScreen() {
         {cartItems.map((item) => (
           <View
             key={item.id}
-            className="mb-4 rounded-3xl bg-white p-4 shadow-sm shadow-[#b9c6d880]"
+            className="mb-4 rounded-3xl bg-card p-4 shadow-sm"
           >
             <View className="flex-row gap-4">
               <Pressable
@@ -58,8 +58,8 @@ export default function CartScreen() {
                 <View
                   className={`h-6 w-6 items-center justify-center rounded-md border-2 ${
                     selected[item.id]
-                      ? "bg-[#00a0d6] border-[#00a0d6]"
-                      : "border-[#cbd5f0] bg-white"
+                      ? "bg-primary border-primary"
+                      : "border-border bg-card"
                   }`}
                 >
                   {selected[item.id] && (
@@ -68,17 +68,17 @@ export default function CartScreen() {
                 </View>
                 <Image
                   source={{ uri: item.image }}
-                  className="h-20 w-20 rounded-2xl bg-[#e8ecf5]"
+                  className="h-20 w-20 rounded-2xl bg-popover"
                   resizeMode="cover"
                 />
               </Pressable>
               <View className="flex-1">
                 <View className="flex-row items-start justify-between">
                   <View className="flex-1 pr-2">
-                    <Text className="text-lg font-semibold text-[#111827]">
+                    <Text className="text-lg font-semibold text-foreground">
                       {item.name}
                     </Text>
-                    <Text className="text-sm text-[#6b7280]">${item.price.toFixed(2)}</Text>
+                    <Text className="text-sm text-muted-foreground">${item.price.toFixed(2)}</Text>
                     {item.status && (
                       <Text
                         className={`text-xs font-semibold ${
@@ -97,23 +97,23 @@ export default function CartScreen() {
                       </Text>
                     )}
                   </View>
-                  <Text className="text-lg font-semibold text-[#111827]">
+                  <Text className="text-lg font-semibold text-foreground">
                     ${(item.price * item.quantity).toFixed(2)}
                   </Text>
                 </View>
 
                 <View className="mt-3 flex-row flex-wrap items-center gap-2">
                   {item.size && (
-                    <View className="rounded-full border border-[#d5dae3] px-3 py-1">
-                      <Text className="text-xs font-medium text-[#111827]">{item.size}</Text>
+                    <View className="rounded-full border border-border px-3 py-1">
+                      <Text className="text-xs font-medium text-foreground">{item.size}</Text>
                     </View>
                   )}
                   {item.color && (
-                    <View className="rounded-full border border-[#d5dae3] px-3 py-1">
-                      <Text className="text-xs font-medium text-[#111827]">{item.color}</Text>
+                    <View className="rounded-full border border-border px-3 py-1">
+                      <Text className="text-xs font-medium text-foreground">{item.color}</Text>
                     </View>
                   )}
-                  <View className="ml-auto flex-row items-center rounded-full border border-[#d5dae3] bg-white">
+                  <View className="ml-auto flex-row items-center rounded-full border border-border bg-card">
                     <Pressable
                       className="px-3 py-1"
                       onPress={() => updateQuantity(item.id, item.quantity - 1)}
@@ -135,14 +135,14 @@ export default function CartScreen() {
                 <View className="mt-4 flex-row items-center gap-6">
                   <Pressable className="flex-row items-center gap-1">
                     <HeartIcon size={16} color="#9ca3af" />
-                    <Text className="text-sm text-[#6b7280]">Save</Text>
+                    <Text className="text-sm text-muted-foreground">Save</Text>
                   </Pressable>
                   <Pressable
                     className="flex-row items-center gap-1"
                     onPress={() => removeFromCart(item.id)}
                   >
                     <Trash2Icon size={16} color="#f43f5e" />
-                    <Text className="text-sm text-[#f43f5e]">Delete</Text>
+                    <Text className="text-sm" style={{ color: 'rgb(var(--destructive))' }}>Delete</Text>
                   </Pressable>
                 </View>
               </View>
@@ -151,27 +151,27 @@ export default function CartScreen() {
         ))}
 
         {cartItems.length === 0 && (
-          <View className="items-center justify-center rounded-3xl bg-white p-8 shadow-sm">
-            <Text className="text-base text-[#6b7280]">Your cart is empty.</Text>
+          <View className="items-center justify-center rounded-3xl bg-card p-8 shadow-sm">
+            <Text className="text-base text-muted-foreground">Your cart is empty.</Text>
           </View>
         )}
       </ScrollView>
 
-      <View className="absolute inset-x-0 bottom-0 border-t border-white/40 bg-white p-4">
+      <View className="absolute inset-x-0 bottom-0 border-t border-border bg-card p-4">
         <View className="flex-row items-center justify-between">
           <View>
-            <Text className="text-sm text-[#6b7280]">
+            <Text className="text-sm text-muted-foreground">
               Selected ({selectedItems.length})
             </Text>
-            <Text className="text-2xl font-semibold text-[#111827]">
+            <Text className="text-2xl font-semibold text-foreground">
               ${total.toFixed(2)}
             </Text>
           </View>
           <Pressable
             className={`rounded-full px-6 py-3 ${
               selectedItems.length > 0
-                ? "bg-[#00a0d6]"
-                : "bg-[#cfd8e9]"
+                ? "bg-primary"
+                : "bg-secondary"
             }`}
             disabled={selectedItems.length === 0}
             onPress={() => {
@@ -182,7 +182,7 @@ export default function CartScreen() {
               router.push("/mock-receipt");
             }}
           >
-            <Text className="text-base font-semibold text-white">
+            <Text className="text-base font-semibold text-primary-foreground">
               Calculate
             </Text>
           </Pressable>

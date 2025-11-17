@@ -20,6 +20,7 @@ import {
 import { SafeAreaView, View, TouchableOpacity } from "react-native";
 import countryList from "country-list-js";
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
     useSharedValue,
@@ -145,6 +146,7 @@ function Stars() {
 
 export default function Home() {
     const locationRef = useRef(null);
+    const router = useRouter();
     const insets = useSafeAreaInsets();
     const contentInsets = {
         top: insets.top,
@@ -218,7 +220,7 @@ export default function Home() {
                         <CardTitle>Budget</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <TouchableOpacity className="flex-row justify-between items-center">
+                        <TouchableOpacity className="flex-row justify-between items-center" onPress={() => router.push('/finance')}>
                             <View className="flex-row items-center">
                                 <DollarSign size={24} color="white" />
                                 <Text className="text-xl ml-2">$5,000</Text>

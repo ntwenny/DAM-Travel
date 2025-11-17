@@ -48,7 +48,7 @@ const COLORS = {
 // --- Component for an Item Row ---
 const ItemRow = ({ name, quantity, priceLocal }: typeof MOCK_RECEIPT_DATA.items[0]) => (
   // Use a transparent background with light grey border for the item box
-  <View className={`flex-row items-center justify-between p-3 my-2 rounded-lg border border-[${COLORS.lightGrey}] bg-transparent`}>
+  <View className={`flex-row items-center justify-between p-3 my-2 bg-card rounded-lg border border-border`}>
     <View className="flex-1 mr-4">
       {/* Font size 18px and black text for item details */}
       <Text className="text-lg font-semibold text-black dark:text-white">{name}</Text>
@@ -166,12 +166,12 @@ export default function MockReceiptScreen() {
             <Text className="text-[18px] text-gray-500 mb-4">{date}</Text>
            
             {/* Dashed line separator (Light Grey) */}
-            <View className={`border-b border-dashed border-[${COLORS.lightGrey}] mb-4`} />
+            <View className={`border-b border-dashed border-border mb-4`} />
            
             <BestWayToPay />
            
             {/* Dashed line separator (Light Grey) */}
-            <View className={`border-b border-dashed border-[${COLORS.lightGrey}] mb-4`} />
+            <View className={`border-b border-dashed border-border mb-4`} />
 
 
 

@@ -19,9 +19,9 @@ const IOS_SYSTEM_COLORS = {
         root: "rgb(246, 248, 245)",
     },
     dark: {
-        background: "rgb(24, 26, 36)",
+        background: "rgba(245, 204, 183, 1)",
         foreground: "rgb(230, 234, 243)",
-        card: "rgb(35, 36, 58)",
+        card: "rgba(186, 188, 229, 1)",
         primary: "rgb(58, 91, 160)",
         destructive: "rgb(160, 74, 108)",
         // The following are not in the new theme, keeping old values
