@@ -655,6 +655,61 @@ export const clearCart = functions.https.onCall(async (request) => {
     return { removed: cartSnap.size };
 });
 
+// Sets the user's currentTripId to the provided tripId (if the trip exists)
+export const setCurrentTrip = functions.https.onCall(async (request) => {
+    if (!request || !request.auth || !request.auth.uid) {
+        throw new functions.https.HttpsError(
+            "unauthenticated",
+            "The function must be called while authenticated."
+        );
+    }
+
+    const { tripId } = request.data || {};
+    if (!tripId || typeof tripId !== "string") {
+        throw new functions.https.HttpsError(
+            "invalid-argument",
+            "tripId (string) is required."
+        );
+    }
+
+    const uid = request.auth.uid;
+    const tripRef = getTripRef(uid, tripId);
+    const tripSnap = await tripRef.get();
+    if (!tripSnap.exists) {
+        // Auto-heal: if the trip doc is missing but exists in the user's
+        // 'trips' array, synthesize a minimal Trip document for consistency.
+        const userRef = db.collection(USERS_COLLECTION).doc(uid);
+        const userDoc = await userRef.get();
+        const userData = userDoc.data() || {};
+        const tripsArr = Array.isArray(userData.trips) ? userData.trips : [];
+        const minimal = tripsArr.find((t: any) => t && t.id === tripId);
+        if (!minimal) {
+            throw new functions.https.HttpsError(
+                "not-found",
+                "Trip not found for this user."
+            );
+        }
+
+        const tripRecord: Trip = {
+            id: tripId,
+            name: minimal.name || "Trip",
+            location: minimal.destination || "",
+            currency: "",
+            budget: Number(minimal.totalBudget) || 0,
+            startDate: minimal.startDate
+                ? new Date(minimal.startDate)
+                : new Date(),
+            endDate: minimal.endDate ? new Date(minimal.endDate) : new Date(),
+        };
+        await tripRef.set(tripRecord, { merge: true });
+    }
+
+    const userRef = db.collection(USERS_COLLECTION).doc(uid);
+    await userRef.set({ currentTripId: tripId }, { merge: true });
+
+    return { currentTripId: tripId };
+});
+
 // Returns the list of trips for the authenticated user.
 export const getTrips = onCall(async (request) => {
     if (!request.auth) {

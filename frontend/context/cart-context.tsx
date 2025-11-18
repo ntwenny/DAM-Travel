@@ -36,11 +36,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const { userProfile } = useUser();
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
     const [loading, setLoading] = useState(false);
-    const fallbackTripId =
-        userProfile?.trips && userProfile.trips.length > 0
-            ? userProfile.trips[0].id
-            : null;
-    const activeTripId = userProfile?.currentTripId ?? fallbackTripId ?? null;
+    // Enforce scoping strictly to the user's selected currentTripId.
+    // If none is set, we consider there is no active trip.
+    const activeTripId = userProfile?.currentTripId ?? null;
 
     const refreshCart = useCallback(async () => {
         if (!activeTripId) {

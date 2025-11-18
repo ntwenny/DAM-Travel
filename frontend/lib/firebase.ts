@@ -238,6 +238,12 @@ export function signOutCurrentUser() {
     return signOut(auth);
 }
 
+export async function setCurrentTrip(tripId: string) {
+    const callable = httpsCallable(functions, "setCurrentTrip");
+    const res = await callable({ tripId });
+    return res.data as { currentTripId: string };
+}
+
 export default {
     auth,
     observeAuthState,
@@ -250,6 +256,7 @@ export default {
     getTripItems,
     getTripItem,
     updateTripItem,
+    setCurrentTrip,
     updateBudget,
     addCategory,
     deleteCategory,
