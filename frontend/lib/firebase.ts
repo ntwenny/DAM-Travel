@@ -52,7 +52,7 @@ export const storage = getStorage(app);
 export const firestore = getFirestore(app);
 
 // If you're running the emulator, enable this. On device you may need to use your machine IP.
-const USE_EMULATOR = false; // flip to false for production
+const USE_EMULATOR = true; // flip to false for production
 if (USE_EMULATOR) {
     // default emulator host/port for functions is localhost:5001
     // If running on Android emulator use 10.0.2.2, on iOS simulator localhost works.

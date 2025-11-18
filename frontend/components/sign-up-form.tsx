@@ -12,8 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
 import * as React from "react";
-import { type TextInput, View } from "react-native";
+import { type TextInput, View, Image } from "react-native";
 import AnimatedView from "./ui/animated-view";
+
 
 type SignUpFormProps = {
     onSubmit: (email: string, password: string) => Promise<void> | void;
@@ -50,6 +51,12 @@ export function SignUpForm({
             <View className="gap-6">
                 <Card className="border-border/0 sm:border-border shadow-none sm:shadow-sm sm:shadow-black/5">
                     <CardHeader>
+                        <View className="items-center mb-2">
+                            <Image
+                                source={require("./logo/skypocketlogo.png")}
+                                style={{ width: 160, height: 100, resizeMode: "contain" }}
+                            />
+                        </View>
                         <CardTitle className="text-center text-xl sm:text-left">
                             Join SkyPocket!
                         </CardTitle>

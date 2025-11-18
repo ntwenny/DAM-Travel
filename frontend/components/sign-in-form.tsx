@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
 import { CloudIcon } from "lucide-react-native";
 import * as React from "react";
-import { type TextInput, View } from "react-native";
+import { type TextInput, View, Image } from "react-native";
 
 type SignInFormProps = {
     onSubmit: (email: string, password: string) => Promise<void> | void;
@@ -51,6 +51,12 @@ export function SignInForm({
             <View className="gap-6">
                 <Card className="border-border/0 sm:border-border shadow-none sm:shadow-sm sm:shadow-black/5">
                     <CardHeader>
+                        <View className="items-center mb-2">
+                            <Image
+                                source={require("./logo/skypocketlogo.png")}
+                                style={{ width: 160, height: 100, resizeMode: "contain" }}
+                            />
+                        </View>
                         <CardTitle className="text-center">
                             <Text className="text-xl sm:text-left font-[Josefin_Bold]">
                                 Welcome back to SkyPocket!
@@ -119,7 +125,7 @@ export function SignInForm({
                         </View>
 
                         <View className="flex-row items-center">
-                            <Label>Don't have an account? </Label>
+                            <Label>Don&apos;t have an account? </Label>
                             <Button
                                 variant="link"
                                 size="sm"
