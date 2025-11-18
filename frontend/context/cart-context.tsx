@@ -1,93 +1,174 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
-
-export type CartItem = {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  image: string;
-  size?: string;
-  color?: string;
-  status?: "in-stock" | "out-of-stock" | "shipping";
-  info?: string;
-};
+import React, {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
+import type { CartItem, TripItem } from "@/types/user";
+import {
+    addCartItemToTrip,
+    clearCartItems,
+    getCart,
+    removeCartItemFromTrip,
+    updateCartQuantity,
+} from "@/lib/firebase";
+import { useUser } from "@/hooks/useUser";
 
 type CartContextValue = {
-  cartItems: CartItem[];
-  addToCart: (item: CartItem) => void;
-  removeFromCart: (id: string) => void;
-  clearCart: () => void;
-  updateQuantity: (id: string, quantity: number) => void;
+    cartItems: CartItem[];
+    loading: boolean;
+    refreshCart: () => Promise<void>;
+    addToCart: (
+        item: TripItem,
+        quantity?: number,
+        tripIdOverride?: string
+    ) => Promise<void>;
+    removeFromCart: (tripItemId: string) => Promise<void>;
+    clearCart: () => Promise<void>;
+    updateQuantity: (tripItemId: string, quantity: number) => Promise<void>;
 };
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 
-const initialItems: CartItem[] = [
-  {
-    id: "1",
-    name: "Relaxed Fit T-shirt",
-    price: 12.99,
-    quantity: 1,
-    image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=400&q=80",
-    size: "XL",
-    color: "Blue",
-    status: "in-stock",
-  },
-  {
-    id: "2",
-    name: "Nylon Sports Cap",
-    price: 14.99,
-    quantity: 1,
-    image: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80",
-    status: "shipping",
-    info: "Available in 2 days",
-  },
-  {
-    id: "3",
-    name: "Sneakers",
-    price: 34.99,
-    quantity: 1,
-    image: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=400&q=80",
-    size: "UK 9",
-    status: "out-of-stock",
-  },
-];
-
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [cartItems, setCartItems] = useState<CartItem[]>(initialItems);
+    const { userProfile } = useUser();
+    const [cartItems, setCartItems] = useState<CartItem[]>([]);
+    const [loading, setLoading] = useState(false);
+    const fallbackTripId =
+        userProfile?.trips && userProfile.trips.length > 0
+            ? userProfile.trips[0].id
+            : null;
+    const activeTripId = userProfile?.currentTripId ?? fallbackTripId ?? null;
 
-  const addToCart = (item: CartItem) => {
-    setCartItems((prev) => [...prev, item]);
-  };
+    const refreshCart = useCallback(async () => {
+        if (!activeTripId) {
+            setCartItems([]);
+            return;
+        }
+        setLoading(true);
+        try {
+            const res = await getCart(activeTripId);
+            setCartItems(res.items ?? []);
+        } catch (error) {
+            console.warn("Failed to load cart", error);
+            setCartItems([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [activeTripId]);
 
-  const removeFromCart = (id: string) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== id));
-  };
+    useEffect(() => {
+        refreshCart();
+    }, [refreshCart]);
 
-  const clearCart = () => {
-    setCartItems([]);
-  };
-
-  const updateQuantity = (id: string, quantity: number) => {
-    setCartItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, quantity: Math.max(1, quantity) } : item
-      )
+    const addToCart = useCallback(
+        async (item: TripItem, quantity = 1, tripIdOverride?: string) => {
+            const tripId = tripIdOverride ?? activeTripId;
+            if (!tripId) {
+                throw new Error("Select a trip before adding items to cart.");
+            }
+            const added = await addCartItemToTrip(
+                tripId,
+                item.id,
+                quantity
+            );
+            setCartItems((prev) => {
+                const idx = prev.findIndex(
+                    (entry) => entry.tripItemId === added.tripItemId
+                );
+                if (idx >= 0) {
+                    const next = [...prev];
+                    next[idx] = { ...next[idx], ...added };
+                    return next;
+                }
+                return [added, ...prev];
+            });
+        },
+        [activeTripId]
     );
-  };
 
-  const value = useMemo(
-    () => ({ cartItems, addToCart, removeFromCart, clearCart, updateQuantity }),
-    [cartItems]
-  );
+    const removeFromCart = useCallback(
+        async (tripItemId: string) => {
+            if (!activeTripId) {
+                throw new Error("No active trip to remove from.");
+            }
+            await removeCartItemFromTrip(activeTripId, tripItemId);
+            setCartItems((prev) =>
+                prev.filter((item) => item.tripItemId !== tripItemId)
+            );
+        },
+        [activeTripId]
+    );
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+    const clearCart = useCallback(async () => {
+        if (!activeTripId) {
+            return;
+        }
+        await clearCartItems(activeTripId);
+        setCartItems([]);
+    }, [activeTripId]);
+
+    const updateQuantity = useCallback(
+        async (tripItemId: string, quantity: number) => {
+            if (!activeTripId) {
+                throw new Error("No active trip to update.");
+            }
+            if (quantity <= 0) {
+                await removeFromCart(tripItemId);
+                return;
+            }
+            const updated = await updateCartQuantity(
+                activeTripId,
+                tripItemId,
+                quantity
+            );
+            setCartItems((prev) => {
+                const idx = prev.findIndex(
+                    (entry) => entry.tripItemId === updated.tripItemId
+                );
+                if (idx === -1) {
+                    return prev;
+                }
+                const next = [...prev];
+                next[idx] = { ...next[idx], ...updated };
+                return next;
+            });
+        },
+        [activeTripId, removeFromCart]
+    );
+
+    const value = useMemo(
+        () => ({
+            cartItems,
+            loading,
+            refreshCart,
+            addToCart,
+            removeFromCart,
+            clearCart,
+            updateQuantity,
+        }),
+        [
+            cartItems,
+            loading,
+            refreshCart,
+            addToCart,
+            removeFromCart,
+            clearCart,
+            updateQuantity,
+        ]
+    );
+
+    return (
+        <CartContext.Provider value={value}>{children}</CartContext.Provider>
+    );
 }
 
 export function useCart() {
-  const ctx = useContext(CartContext);
-  if (!ctx) {
-    throw new Error("useCart must be used within a CartProvider");
-  }
-  return ctx;
+    const ctx = useContext(CartContext);
+    if (!ctx) {
+        throw new Error("useCart must be used within a CartProvider");
+    }
+    return ctx;
 }

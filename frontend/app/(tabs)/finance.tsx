@@ -138,12 +138,8 @@ export default function FinanceScreen() {
     }
 
     return (
-<<<<<<< HEAD
-        <SafeAreaView className="flex-1 bg-background">
-=======
         <SafeAreaView className="flex-1 bg-gray-50">
 
->>>>>>> b1dc131 (feat: enhance home screen with trip items carousel and budget management)
             <ScrollView
                 className="p-4"
                 contentInsetAdjustmentBehavior="never"

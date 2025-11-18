@@ -17,6 +17,7 @@ import {
 } from "firebase/auth";
 import { getStorage, connectStorageEmulator } from "firebase/storage";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
+import type { CartItem } from "@/types/user";
 
 /**
  * Minimal firebase initialization for the client.
@@ -141,6 +142,46 @@ export async function updateTripItem(
 ) {
     const callable = httpsCallable(functions, "updateTripItem");
     await callable({ tripId, tripItemId, ...data });
+}
+
+export async function addCartItemToTrip(
+    tripId: string,
+    tripItemId: string,
+    quantity = 1
+) {
+    const callable = httpsCallable(functions, "addCartItem");
+    const res = await callable({ tripId, tripItemId, quantity });
+    return res.data as CartItem;
+}
+
+export async function removeCartItemFromTrip(
+    tripId: string,
+    tripItemId: string
+) {
+    const callable = httpsCallable(functions, "removeCartItem");
+    await callable({ tripId, tripItemId });
+}
+
+export async function updateCartQuantity(
+    tripId: string,
+    tripItemId: string,
+    quantity: number
+) {
+    const callable = httpsCallable(functions, "updateCartItemQuantity");
+    const res = await callable({ tripId, tripItemId, quantity });
+    return res.data as CartItem;
+}
+
+export async function getCart(tripId: string) {
+    const callable = httpsCallable(functions, "getCartItems");
+    const res = await callable({ tripId });
+    return res.data as { items: CartItem[]; total: number };
+}
+
+export async function clearCartItems(tripId: string) {
+    const callable = httpsCallable(functions, "clearCart");
+    const res = await callable({ tripId });
+    return res.data as { removed: number };
 }
 
 export async function updateBudget(budget: number) {

@@ -24,6 +24,11 @@ import {
     createTrip,
     deleteTrip,
     getTrips,
+    addCartItem,
+    removeCartItem,
+    getCartItems,
+    clearCart,
+    updateCartItemQuantity,
 } from "./trip";
 import {
     getFinance,
@@ -50,6 +55,11 @@ export {
     deleteTrip,
     createReceipt,
     getTrips,
+    addCartItem,
+    removeCartItem,
+    getCartItems,
+    clearCart,
+    updateCartItemQuantity,
     getFinance,
     updateBudget,
     addCategory,

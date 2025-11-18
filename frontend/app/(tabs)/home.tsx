@@ -50,10 +50,10 @@ import { signOutCurrentUser } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/useToast";
 import { BudgetDialog } from "@/components/budget-dialog";
-import { useRouter } from "expo-router";
 import { useUser } from "@/hooks/useUser";
 import type { Trip, TripItem } from "@/types/user";
 import { getTripItems } from "@/lib/firebase";
+import { useCart } from "@/context/cart-context";
 
 interface Country {
     name: string;
@@ -171,6 +171,7 @@ function TripItemCarousel({
 
 export default function Home() {
     const { toast } = useToast();
+    const { addToCart } = useCart();
     const router = useRouter();
     const { user, userProfile } = useUser();
     const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
@@ -254,7 +255,6 @@ export default function Home() {
     const remainingBudget = (currentTrip?.budget ?? 0) - totalSpent;
 
     const locationRef = useRef(null);
-    const router = useRouter();
     const insets = useSafeAreaInsets();
     const contentInsets = {
         top: insets.top,
@@ -428,12 +428,33 @@ export default function Home() {
                                 }
                             }}
                             onAddToCart={(item) => {
-                                toast({
-                                    title: "Info",
-                                    description:
-                                        "Add to cart not implemented yet.",
-                                    variant: "info",
-                                });
+                                if (!currentTrip) {
+                                    toast({
+                                        title: "Select a trip",
+                                        description:
+                                            "Please pick an active trip before adding items to the cart.",
+                                        variant: "info",
+                                    });
+                                    return;
+                                }
+                                addToCart(item, 1, currentTrip.id)
+                                    .then(() =>
+                                        toast({
+                                            title: "Added to cart",
+                                            description: `${item.name} is in your cart.`,
+                                            variant: "success",
+                                        })
+                                    )
+                                    .catch((error) =>
+                                        toast({
+                                            title: "Unable to add item",
+                                            description:
+                                                error instanceof Error
+                                                    ? error.message
+                                                    : "Please try again.",
+                                            variant: "error",
+                                        })
+                                    );
                             }}
                         />
                     )}
