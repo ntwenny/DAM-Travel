@@ -29,12 +29,17 @@ import type { CartItem } from "@/types/user";
  */
 
 const firebaseConfig = {
-    apiKey: "fake",
-    authDomain: "fake.firebaseapp.com",
+    apiKey: "AIzaSyDnk4ePtnUBq5yR8M6JWjA3N5hz4z3yUHE",
+
+    authDomain: "dam-travel.firebaseapp.com",
+
     projectId: "dam-travel",
-    storageBucket: "fake.appspot.com",
-    messagingSenderId: "0",
-    appId: "1:0:web:000000000000",
+
+    storageBucket: "dam-travel.firebasestorage.app",
+
+    messagingSenderId: "985066489591",
+
+    appId: "1:985066489591:web:34b13f9a3e2b74073a75f2",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -47,7 +52,7 @@ export const storage = getStorage(app);
 export const firestore = getFirestore(app);
 
 // If you're running the emulator, enable this. On device you may need to use your machine IP.
-const USE_EMULATOR = true; // flip to false for production
+const USE_EMULATOR = false; // flip to false for production
 if (USE_EMULATOR) {
     // default emulator host/port for functions is localhost:5001
     // If running on Android emulator use 10.0.2.2, on iOS simulator localhost works.

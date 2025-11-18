@@ -1,4 +1,4 @@
-import { Trip } from "./trip";
+import {Trip} from "./trip";
 export interface UserProperties {
     email: string;
     displayName: string;

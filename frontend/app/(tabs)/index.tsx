@@ -20,6 +20,7 @@ import { useUser } from "@/hooks/useUser";
 import { uploadBytes, ref } from "firebase/storage";
 import { storage } from "@/lib/firebase";
 import { useRouter } from "expo-router";
+import { Button } from "@/components/ui/button";
 
 export default function ScanScreen() {
     const navigation = useNavigation();
@@ -219,6 +220,13 @@ export default function ScanScreen() {
                                 Save / Upload
                             </Text>
                         </Pressable>
+
+                        <Button
+                            className="bg-primary px-4 py-2 rounded-lg"
+                            onPress={() => router.push("/diagnostics")}
+                        >
+                            <Text>Diagnostics</Text>
+                        </Button>
                     </View>
                 </View>
             )}

@@ -1,10 +1,10 @@
 /**
- * 
-.----.   .--.  .-.   .-. .---. .----.   .--.  .-. .-..----..-.   
-| {}  \ / {} \ |  `.'  |{_   _}| {}  } / {} \ | | | || {_  | |   
+ *
+.----.   .--.  .-.   .-. .---. .----.   .--.  .-. .-..----..-.
+| {}  \ / {} \ |  `.'  |{_   _}| {}  } / {} \ | | | || {_  | |
 |     //  /\  \| |\ /| |  | |  | .-. \/  /\  \\ \_/ /| {__ | `--.
 `----' `-'  `-'`-' ` `-'  `-'  `-' `-'`-'  `-' `---' `----'`----'
- * Firebase Functions Entry Point (Backend) 
+ * Firebase Functions Entry Point (Backend)
  */
 
 import * as logger from "firebase-functions/logger";
@@ -13,60 +13,60 @@ import * as admin from "firebase-admin";
 admin.initializeApp();
 logger.info("App Initialized...");
 
-import { onUserCreate, onUserDelete, updateUser } from "./user";
-import { onTripItemImageUpload } from "./comparison";
+import {onUserCreate, onUserDelete, updateUser} from "./user";
+import {onTripItemImageUpload} from "./comparison";
 import {
-    addTripItem,
-    getTripItems,
-    getTripItem,
-    updateTripItem,
-    createReceipt,
-    createTrip,
-    setCurrentTrip,
-    deleteTrip,
-    getTrips,
-    addCartItem,
-    removeCartItem,
-    getCartItems,
-    clearCart,
-    updateCartItemQuantity,
+  addTripItem,
+  getTripItems,
+  getTripItem,
+  updateTripItem,
+  createReceipt,
+  createTrip,
+  setCurrentTrip,
+  deleteTrip,
+  getTrips,
+  addCartItem,
+  removeCartItem,
+  getCartItems,
+  clearCart,
+  updateCartItemQuantity,
 } from "./trip";
 import {
-    getFinance,
-    updateBudget,
-    addCategory,
-    deleteCategory,
-    addTransaction,
-    deleteTransaction,
-    editTransaction,
+  getFinance,
+  updateBudget,
+  addCategory,
+  deleteCategory,
+  addTransaction,
+  deleteTransaction,
+  editTransaction,
 } from "./finance";
 
 logger.info("Registering Functions...");
 
 export {
-    onUserCreate,
-    updateUser,
-    onUserDelete,
-    onTripItemImageUpload,
-    addTripItem,
-    getTripItems,
-    getTripItem,
-    updateTripItem,
-    createTrip,
-    setCurrentTrip,
-    deleteTrip,
-    createReceipt,
-    getTrips,
-    addCartItem,
-    removeCartItem,
-    getCartItems,
-    clearCart,
-    updateCartItemQuantity,
-    getFinance,
-    updateBudget,
-    addCategory,
-    deleteCategory,
-    addTransaction,
-    deleteTransaction,
-    editTransaction,
+  onUserCreate,
+  updateUser,
+  onUserDelete,
+  onTripItemImageUpload,
+  addTripItem,
+  getTripItems,
+  getTripItem,
+  updateTripItem,
+  createTrip,
+  setCurrentTrip,
+  deleteTrip,
+  createReceipt,
+  getTrips,
+  addCartItem,
+  removeCartItem,
+  getCartItems,
+  clearCart,
+  updateCartItemQuantity,
+  getFinance,
+  updateBudget,
+  addCategory,
+  deleteCategory,
+  addTransaction,
+  deleteTransaction,
+  editTransaction,
 };

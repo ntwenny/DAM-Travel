@@ -1,11 +1,11 @@
-import { UserProperties } from "@/types/user";
+import {UserProperties} from "@/types/user";
 import * as admin from "firebase-admin";
-import { firestore } from "firebase-admin";
-import { createTripInternal } from "./trip";
-import { auth } from "firebase-functions/v1";
+import {firestore} from "firebase-admin";
+import {createTripInternal} from "./trip";
+import {auth} from "firebase-functions/v1";
 import * as logger from "firebase-functions/logger";
-import { HttpsError } from "firebase-functions/v1/https";
-import { getStorage } from "firebase-admin/storage";
+import {HttpsError} from "firebase-functions/v1/https";
+import {getStorage} from "firebase-admin/storage";
 import * as functions from "firebase-functions";
 
 const database = firestore();
@@ -28,52 +28,52 @@ const database = firestore();
  * @returns A Promise that resolves when the Firestore write completes.
  */
 export const onUserCreate = auth.user().onCreate(async (user) => {
-    const userProfile: UserProperties = {
-        email: user.email || "",
-        displayName: user.displayName || "",
-        photoURL: user.photoURL || "",
-        trips: [],
-    };
+  const userProfile: UserProperties = {
+    email: user.email || "",
+    displayName: user.displayName || "",
+    photoURL: user.photoURL || "",
+    trips: [],
+  };
 
+  try {
+    // Create user profile in Firestore
+    await database.collection("users").doc(user.uid).set(userProfile);
+
+    // Create a default trip for the new user using shared trip creation helper
     try {
-        // Create user profile in Firestore
-        await database.collection("users").doc(user.uid).set(userProfile);
-
-        // Create a default trip for the new user using shared trip creation helper
-        try {
-            const now = new Date();
-            await createTripInternal(user.uid, {
-                name: "My First Trip",
-                location: "",
-                currency: "",
-                budget: 0,
-                startDate: now,
-                endDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
-            });
-        } catch (err) {
-            logger.error("Failed to create default trip for user:", err);
-        }
-
-        // Create user directory in Storage by adding a placeholder file
-        const bucket = getStorage().bucket();
-        const userDirPath = `users/${user.uid}/.init`;
-        const file = bucket.file(userDirPath);
-        await file.save("", {
-            metadata: {
-                contentType: "text/plain",
-                metadata: {
-                    createdAt: new Date().toISOString(),
-                },
-            },
-        });
-
-        logger.info(`Created storage directory for user ${user.uid}`);
-    } catch (error) {
-        logger.error(
-            "Error creating user profile or storage directory:",
-            error
-        );
+      const now = new Date();
+      await createTripInternal(user.uid, {
+        name: "My First Trip",
+        location: "",
+        currency: "",
+        budget: 0,
+        startDate: now,
+        endDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+      });
+    } catch (err) {
+      logger.error("Failed to create default trip for user:", err);
     }
+
+    // Create user directory in Storage by adding a placeholder file
+    const bucket = getStorage().bucket();
+    const userDirPath = `users/${user.uid}/.init`;
+    const file = bucket.file(userDirPath);
+    await file.save("", {
+      metadata: {
+        contentType: "text/plain",
+        metadata: {
+          createdAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    logger.info(`Created storage directory for user ${user.uid}`);
+  } catch (error) {
+    logger.error(
+      "Error creating user profile or storage directory:",
+      error
+    );
+  }
 });
 
 /**
@@ -90,20 +90,20 @@ export const onUserCreate = auth.user().onCreate(async (user) => {
  * - Errors are handled inside the function to prevent propagation to the Auth trigger.
  */
 export const onUserDelete = auth.user().onDelete(async (user) => {
+  try {
+    await database.collection("users").doc(user.uid).delete();
+    // Remove all storage objects under the user's prefix
     try {
-        await database.collection("users").doc(user.uid).delete();
-        // Remove all storage objects under the user's prefix
-        try {
-            const bucket = getStorage().bucket();
-            // deleteFiles will remove all objects under the prefix
-            await bucket.deleteFiles({ prefix: `users/${user.uid}/` });
-            logger.info(`Deleted storage files for user ${user.uid}`);
-        } catch (err) {
-            logger.error("Failed to delete storage files for user:", err);
-        }
-    } catch (error) {
-        logger.error("Error deleting user profile:", error);
+      const bucket = getStorage().bucket();
+      // deleteFiles will remove all objects under the prefix
+      await bucket.deleteFiles({prefix: `users/${user.uid}/`});
+      logger.info(`Deleted storage files for user ${user.uid}`);
+    } catch (err) {
+      logger.error("Failed to delete storage files for user:", err);
     }
+  } catch (error) {
+    logger.error("Error deleting user profile:", error);
+  }
 });
 
 /**
@@ -111,33 +111,33 @@ export const onUserDelete = auth.user().onDelete(async (user) => {
  * Updates both the Firestore user document and the Authentication displayName when provided.
  */
 export const updateUser = functions.https.onCall(async (request) => {
-    console.log(request);
-    if (!request || !request.auth || !request.auth.uid) {
-        throw new HttpsError("unauthenticated", "User must be authenticated");
+  console.log(request);
+  if (!request || !request.auth || !request.auth.uid) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+
+  const uid = request.auth.uid;
+  const data = request.data as Partial<UserProperties>;
+
+  try {
+    if (data && Object.keys(data).length > 0) {
+      await database.collection("users").doc(uid).update(data);
     }
 
-    const uid = request.auth.uid;
-    const data = request.data as Partial<UserProperties>;
-
-    try {
-        if (data && Object.keys(data).length > 0) {
-            await database.collection("users").doc(uid).update(data);
-        }
-
-        // If a displayName was provided, mirror it to the Auth user profile as well.
-        if (data.displayName) {
-            try {
-                await admin.auth().updateUser(uid, {
-                    displayName: String(data.displayName),
-                });
-            } catch (authErr) {
-                logger.error("Failed to update auth displayName:", authErr);
-            }
-        }
-
-        return { success: true };
-    } catch (error) {
-        logger.error("Failed to update user:", error);
-        throw new HttpsError("internal", "Failed to update user profile");
+    // If a displayName was provided, mirror it to the Auth user profile as well.
+    if (data.displayName) {
+      try {
+        await admin.auth().updateUser(uid, {
+          displayName: String(data.displayName),
+        });
+      } catch (authErr) {
+        logger.error("Failed to update auth displayName:", authErr);
+      }
     }
+
+    return {success: true};
+  } catch (error) {
+    logger.error("Failed to update user:", error);
+    throw new HttpsError("internal", "Failed to update user profile");
+  }
 });

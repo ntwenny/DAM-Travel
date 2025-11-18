@@ -51,10 +51,12 @@ export default function SimilarProductsScreen() {
             try {
                 const data = await getTripItem(tripId, tripItemId);
                 setTripItem(data);
+                console.log("Fetched trip item:", data);
 
                 if (data.parsingStatus === "PARSED") {
                     setLoading(false);
                     if (!selectedPage) {
+                        console.log("Moo");
                         const primaryPage =
                             data._items?.pages?.find(
                                 (p: ShoppingPage) =>
@@ -276,7 +278,7 @@ export default function SimilarProductsScreen() {
                                                 <Text className="text-sm font-[JosefinSans-Regular]">
                                                     {item.name}
                                                 </Text>
-                                                <View className="flex flex-row items-center">
+                                                <View className="flex flex-row flex-shrink items-center">
                                                     {item.source_icon ? (
                                                         <Image
                                                             source={{
@@ -285,7 +287,11 @@ export default function SimilarProductsScreen() {
                                                             className="w-4 h-4 mr-1"
                                                         />
                                                     ) : null}
-                                                    <Text className="text-sm font-[JosefinSans-Bold] pt-2">
+                                                    <Text
+                                                        className="text-sm font-[JosefinSans-Bold] pt-2"
+                                                        numberOfLines={1}
+                                                        ellipsizeMode="tail"
+                                                    >
                                                         {item.source}
                                                     </Text>
                                                 </View>

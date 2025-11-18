@@ -242,7 +242,10 @@ export default function TripSelectionScreen() {
     const displayName = user?.displayName || user?.email || "Traveler";
     const [settingTrip, setSettingTrip] = useState(false);
     const disablePrimaryAction =
-        loadingTrips || settingTrip || !selectedTrip?.value || tripsError !== null;
+        loadingTrips ||
+        settingTrip ||
+        !selectedTrip?.value ||
+        tripsError !== null;
 
     const showAuthOverlay = authReady && !isSignedIn;
     const showAuthForm = authReady && !isSignedIn && !isSigningUp;
@@ -345,6 +348,15 @@ export default function TripSelectionScreen() {
                         </SelectContent>
                     </Select>
 
+                    <Button
+                        variant="outline"
+                        className="w-40 mt-2"
+                        onPress={() => {
+                            router.push("/diagnostics");
+                        }}
+                    >
+                        <Text>Diagnostics</Text>
+                    </Button>
                     {tripsError && (
                         <View className="mt-3 text-center items-center">
                             <Text className="text-destructive text-sm">
@@ -369,7 +381,9 @@ export default function TripSelectionScreen() {
                                 if (!selectedTrip?.value) return;
                                 try {
                                     setSettingTrip(true);
-                                    await setCurrentTrip(String(selectedTrip.value));
+                                    await setCurrentTrip(
+                                        String(selectedTrip.value)
+                                    );
                                     router.push("/(tabs)/home");
                                 } finally {
                                     setSettingTrip(false);
