@@ -1,7 +1,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { getStorage } from "firebase-admin/storage";
-import { Trip, TripItem, Receipt } from "./types/trip";
+import { Trip, TripItem, Receipt, CartItem } from "./types/trip";
 import currency from "currency.js";
 import * as salesTax from "sales-tax";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
@@ -9,6 +9,28 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 
 const db = admin.firestore();
+const USERS_COLLECTION = "users";
+const TRIPS_SUBCOLLECTION = "trips";
+const TRIP_ITEMS_SUBCOLLECTION = "tripItems";
+const CART_SUBCOLLECTION = "cart";
+
+function getTripRef(uid: string, tripId: string) {
+    return db
+        .collection(USERS_COLLECTION)
+        .doc(uid)
+        .collection(TRIPS_SUBCOLLECTION)
+        .doc(tripId);
+}
+
+function getTripItemRef(uid: string, tripId: string, tripItemId: string) {
+    return getTripRef(uid, tripId)
+        .collection(TRIP_ITEMS_SUBCOLLECTION)
+        .doc(tripItemId);
+}
+
+function getCartCollection(uid: string, tripId: string) {
+    return getTripRef(uid, tripId).collection(CART_SUBCOLLECTION);
+}
 
 export type CreateTripParams = {
     name?: string;
@@ -257,7 +279,8 @@ export async function addTripItemInternal(
         source: item.source,
         source_icon: item.source_icon,
         _items: item._items,
-        parsingStatus: item.parsingStatus || "NOT_READY",
+        parsingStatus: "NOT_READY",
+        isInCart: item.isInCart || false,
     };
 
     // Remove undefined fields before writing to Firestore
@@ -404,6 +427,288 @@ export const updateTripItem = functions.https.onCall(async (request) => {
     await itemRef.update(updateData);
 
     return { success: true };
+});
+
+export const addCartItem = functions.https.onCall(async (request) => {
+    if (!request || !request.auth || !request.auth.uid) {
+        throw new functions.https.HttpsError(
+            "unauthenticated",
+            "The function must be called while authenticated."
+        );
+    }
+
+    const { tripId, tripItemId, quantity = 1 } = request.data || {};
+    const qty = Number(quantity);
+    if (!tripId || !tripItemId || Number.isNaN(qty) || qty <= 0) {
+        throw new functions.https.HttpsError(
+            "invalid-argument",
+            "tripId, tripItemId and a positive quantity are required."
+        );
+    }
+
+    const uid = request.auth.uid;
+    const tripRef = getTripRef(uid, tripId);
+    const tripDoc = await tripRef.get();
+    if (!tripDoc.exists) {
+        throw new functions.https.HttpsError("not-found", "Trip not found.");
+    }
+
+    const tripItemRef = getTripItemRef(uid, tripId, tripItemId);
+    const tripItemSnap = await tripItemRef.get();
+    if (!tripItemSnap.exists) {
+        throw new functions.https.HttpsError(
+            "not-found",
+            "Trip item not found."
+        );
+    }
+
+    const cartCollection = getCartCollection(uid, tripId);
+    const cartDocRef = cartCollection.doc(tripItemId);
+    const existingCartSnap = await cartDocRef.get();
+    const now = new Date();
+
+    if (existingCartSnap.exists) {
+        const existing = existingCartSnap.data() as CartItem;
+        const newQuantity = (existing.quantity || 0) + qty;
+        await cartDocRef.update({
+            quantity: newQuantity,
+            addedAt: now,
+        });
+        await tripItemRef.update({ isInCart: true });
+        return {
+            ...existing,
+            tripItemId: existing.tripItemId || tripItemId,
+            quantity: newQuantity,
+            addedAt: now,
+        };
+    }
+
+    const tripItem = tripItemSnap.data() as TripItem;
+
+    const cartItem: CartItem = {
+        ...tripItem,
+        id: cartDocRef.id,
+        tripItemId,
+        isInCart: true,
+        quantity: qty,
+        addedAt: now,
+    };
+
+    await cartDocRef.set(cartItem);
+    await tripItemRef.update({ isInCart: true });
+
+    return cartItem;
+});
+
+export const removeCartItem = functions.https.onCall(async (request) => {
+    if (!request || !request.auth || !request.auth.uid) {
+        throw new functions.https.HttpsError(
+            "unauthenticated",
+            "The function must be called while authenticated."
+        );
+    }
+
+    const { tripId, tripItemId } = request.data || {};
+    if (!tripId || !tripItemId) {
+        throw new functions.https.HttpsError(
+            "invalid-argument",
+            "tripId and tripItemId are required."
+        );
+    }
+
+    const uid = request.auth.uid;
+    const cartDocRef = getCartCollection(uid, tripId).doc(tripItemId);
+    const cartDoc = await cartDocRef.get();
+    if (!cartDoc.exists) {
+        throw new functions.https.HttpsError(
+            "not-found",
+            "Cart item not found."
+        );
+    }
+
+    await cartDocRef.delete();
+    await getTripItemRef(uid, tripId, tripItemId).set(
+        { isInCart: false },
+        { merge: true }
+    );
+
+    return { success: true };
+});
+
+export const updateCartItemQuantity = functions.https.onCall(
+    async (request) => {
+        if (!request || !request.auth || !request.auth.uid) {
+            throw new functions.https.HttpsError(
+                "unauthenticated",
+                "The function must be called while authenticated."
+            );
+        }
+
+        const { tripId, tripItemId, quantity } = request.data || {};
+        const qty = Number(quantity);
+        if (
+            !tripId ||
+            !tripItemId ||
+            Number.isNaN(qty) ||
+            !Number.isFinite(qty)
+        ) {
+            throw new functions.https.HttpsError(
+                "invalid-argument",
+                "tripId, tripItemId and a numeric quantity are required."
+            );
+        }
+
+        const uid = request.auth.uid;
+        const cartDocRef = getCartCollection(uid, tripId).doc(tripItemId);
+        const cartDoc = await cartDocRef.get();
+        if (!cartDoc.exists) {
+            throw new functions.https.HttpsError(
+                "not-found",
+                "Cart item not found."
+            );
+        }
+
+        if (qty <= 0) {
+            await cartDocRef.delete();
+            await getTripItemRef(uid, tripId, tripItemId).set(
+                { isInCart: false },
+                { merge: true }
+            );
+            return { removed: true };
+        }
+
+        await cartDocRef.update({ quantity: qty });
+        const existingData = cartDoc.data() as CartItem;
+        const nextItem: CartItem = {
+            ...existingData,
+            tripItemId: existingData.tripItemId || tripItemId,
+            quantity: qty,
+        };
+
+        return nextItem;
+    }
+);
+
+export const getCartItems = functions.https.onCall(async (request) => {
+    if (!request || !request.auth || !request.auth.uid) {
+        throw new functions.https.HttpsError(
+            "unauthenticated",
+            "The function must be called while authenticated."
+        );
+    }
+
+    const { tripId } = request.data || {};
+    if (!tripId) {
+        throw new functions.https.HttpsError(
+            "invalid-argument",
+            "tripId is required."
+        );
+    }
+
+    const uid = request.auth.uid;
+    const cartSnap = await getCartCollection(uid, tripId).get();
+    const items: CartItem[] = [];
+    cartSnap.forEach((doc) => {
+        items.push(doc.data() as CartItem);
+    });
+
+    const total = items.reduce((acc, item) => {
+        const qty = item.quantity ?? 1;
+        return currency(acc).add(currency(item.price || 0).multiply(qty)).value;
+    }, 0);
+
+    return { items, total };
+});
+
+export const clearCart = functions.https.onCall(async (request) => {
+    if (!request || !request.auth || !request.auth.uid) {
+        throw new functions.https.HttpsError(
+            "unauthenticated",
+            "The function must be called while authenticated."
+        );
+    }
+
+    const { tripId } = request.data || {};
+    if (!tripId) {
+        throw new functions.https.HttpsError(
+            "invalid-argument",
+            "tripId is required."
+        );
+    }
+
+    const uid = request.auth.uid;
+    const cartCollection = getCartCollection(uid, tripId);
+    const cartSnap = await cartCollection.get();
+    if (cartSnap.empty) {
+        return { removed: 0 };
+    }
+
+    const batch = db.batch();
+    cartSnap.forEach((doc) => {
+        const data = doc.data() as CartItem;
+        batch.delete(doc.ref);
+        const tripItemId = data.tripItemId || doc.id;
+        const tripItemRef = getTripItemRef(uid, tripId, tripItemId);
+        batch.set(tripItemRef, { isInCart: false }, { merge: true });
+    });
+
+    await batch.commit();
+    return { removed: cartSnap.size };
+});
+
+// Sets the user's currentTripId to the provided tripId (if the trip exists)
+export const setCurrentTrip = functions.https.onCall(async (request) => {
+    if (!request || !request.auth || !request.auth.uid) {
+        throw new functions.https.HttpsError(
+            "unauthenticated",
+            "The function must be called while authenticated."
+        );
+    }
+
+    const { tripId } = request.data || {};
+    if (!tripId || typeof tripId !== "string") {
+        throw new functions.https.HttpsError(
+            "invalid-argument",
+            "tripId (string) is required."
+        );
+    }
+
+    const uid = request.auth.uid;
+    const tripRef = getTripRef(uid, tripId);
+    const tripSnap = await tripRef.get();
+    if (!tripSnap.exists) {
+        // Auto-heal: if the trip doc is missing but exists in the user's
+        // 'trips' array, synthesize a minimal Trip document for consistency.
+        const userRef = db.collection(USERS_COLLECTION).doc(uid);
+        const userDoc = await userRef.get();
+        const userData = userDoc.data() || {};
+        const tripsArr = Array.isArray(userData.trips) ? userData.trips : [];
+        const minimal = tripsArr.find((t: any) => t && t.id === tripId);
+        if (!minimal) {
+            throw new functions.https.HttpsError(
+                "not-found",
+                "Trip not found for this user."
+            );
+        }
+
+        const tripRecord: Trip = {
+            id: tripId,
+            name: minimal.name || "Trip",
+            location: minimal.destination || "",
+            currency: "",
+            budget: Number(minimal.totalBudget) || 0,
+            startDate: minimal.startDate
+                ? new Date(minimal.startDate)
+                : new Date(),
+            endDate: minimal.endDate ? new Date(minimal.endDate) : new Date(),
+        };
+        await tripRef.set(tripRecord, { merge: true });
+    }
+
+    const userRef = db.collection(USERS_COLLECTION).doc(uid);
+    await userRef.set({ currentTripId: tripId }, { merge: true });
+
+    return { currentTripId: tripId };
 });
 
 // Returns the list of trips for the authenticated user.

@@ -31,6 +31,13 @@ export interface TripItem {
     source_icon?: string;
     _items?: ShoppingDetectionItem;
     parsingStatus?: "NOT_READY" | "PARSING" | "PARSED" | "FAILED";
+    isInCart?: boolean;
+}
+
+export interface CartItem extends TripItem {
+    tripItemId: string;
+    quantity: number;
+    addedAt?: Date;
 }
 
 export interface TripLink {
@@ -45,7 +52,7 @@ export interface TripLink {
 }
 
 export interface ShoppingCart {
-    items: TripItem[];
+    items: CartItem[];
     total: number;
 }
 
