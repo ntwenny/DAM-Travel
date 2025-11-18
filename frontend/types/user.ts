@@ -8,6 +8,16 @@ export interface Trip {
     endDate: Date;
 }
 
+export interface ShoppingPage {
+    name: string;
+    productPage: string; // product page URL
+    thumbnail?: string; // image url that matched
+    extractedPrice?: number;
+    source?: string; // source of the link (vision:web, google, etc.)
+    source_icon?: string; // icon URL for the source
+    extensions: Array<string>;
+}
+
 export interface ShoppingDetectionItem {
     pages: Array<{
         name: string;
@@ -15,17 +25,9 @@ export interface ShoppingDetectionItem {
         thumbnail?: string; // image url that matched
         extractedPrice?: number;
         source?: string; // source of the link (vision:web, google, etc.)
+        source_icon?: string; // icon URL for the source
         extensions: Array<string>;
     }>;
-}
-
-export interface ShoppingPage {
-    name: string;
-    productPage: string; // product page URL
-    thumbnail?: string; // image url that matched
-    extractedPrice?: number;
-    source?: string; // source of the link (vision:web, google, etc.)
-    extensions?: Array<string>;
 }
 
 export interface TripItem {
@@ -36,6 +38,7 @@ export interface TripItem {
     thumbnail?: string;
     productPage?: string;
     source?: string;
+    source_icon?: string;
     _items?: ShoppingDetectionItem;
     parsingStatus?: "NOT_READY" | "PARSING" | "PARSED" | "FAILED";
 }

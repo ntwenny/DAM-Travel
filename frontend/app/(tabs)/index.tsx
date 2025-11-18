@@ -20,8 +20,6 @@ import { useUser } from "@/hooks/useUser";
 import { uploadBytes, ref } from "firebase/storage";
 import { storage } from "@/lib/firebase";
 import { useRouter } from "expo-router";
-import { doc, updateDoc, arrayUnion } from "firebase/firestore";
-import { firestore } from "@/lib/firebase";
 
 export default function ScanScreen() {
     const navigation = useNavigation();
@@ -49,51 +47,14 @@ export default function ScanScreen() {
     }
 
     async function takePicture() {
-        if (cameraReference.current && user && userProfile?.currentTripId) {
-            const photo = await cameraReference.current.takePictureAsync();
-            console.log("Photo taken:", photo.uri);
-            setPhotoUri(photo.uri);
-
-            const tripItemId = Date.now().toString();
-            const response = await fetch(photo.uri);
-            const blob = await response.blob();
-            const storageRef = ref(
-                storage,
-                `users/${user.uid}/${userProfile.currentTripId}/${tripItemId}.jpg`
-            );
-            await uploadBytes(storageRef, blob);
-
-            const userDocRef = doc(firestore, "users", user.uid);
-            const tripItem = {
-                id: tripItemId,
-                photo: "",
-                description: "",
-                date: new Date().toISOString(),
-                price: 0,
-                parsingStatus: "PARSING",
-                rawDetectionData: null,
-            };
-
-            const trips = userProfile.trips.map((trip) => {
-                if (trip.id === userProfile.currentTripId) {
-                    return {
-                        ...trip,
-                        items: arrayUnion(tripItem),
-                    };
-                }
-                return trip;
-            });
-
-            await updateDoc(userDocRef, { trips });
-
-            router.push({
-                pathname: "/similar-products",
-                params: {
-                    tripId: userProfile.currentTripId,
-                    tripItemId: tripItemId,
-                },
-            });
+        if (!cameraReference.current) {
+            return;
         }
+
+        const photo = await cameraReference.current.takePictureAsync();
+        console.log("Photo taken:", photo.uri);
+        setPhotoUri(photo.uri);
+        setLastPicked(photo.uri);
     }
 
     async function pickImageFromLibrary() {
@@ -113,6 +74,35 @@ export default function ScanScreen() {
 
     function retakePicture() {
         setPhotoUri(null);
+    }
+
+    async function uploadCurrentPhoto() {
+        if (!photoUri || !user || !userProfile?.currentTripId) {
+            return;
+        }
+
+        try {
+            const tripItemId = Date.now().toString();
+            const response = await fetch(photoUri);
+            const blob = await response.blob();
+            const storageRef = ref(
+                storage,
+                `users/${user.uid}/${userProfile.currentTripId}/${tripItemId}.jpg`
+            );
+            await uploadBytes(storageRef, blob);
+
+            router.push({
+                pathname: "/similar-products",
+                params: {
+                    tripId: userProfile.currentTripId,
+                    tripItemId,
+                },
+            });
+
+            setPhotoUri(null);
+        } catch (error) {
+            console.error("Failed to upload photo", error);
+        }
     }
 
     return (
@@ -222,7 +212,7 @@ export default function ScanScreen() {
                         </Pressable>
 
                         <Pressable
-                            onPress={takePicture}
+                            onPress={uploadCurrentPhoto}
                             className="bg-primary px-4 py-2 rounded-lg"
                         >
                             <Text className="text-white font-semibold">

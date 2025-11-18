@@ -14,10 +14,10 @@ import { View, type ViewProps, TouchableOpacity } from "react-native";
 const toastVariants = {
     success: {
         icon: CheckCircle2,
-        className: "bg-success border-success-foreground/20",
-        iconClass: "text-success-foreground",
-        titleClass: "text-success-foreground",
-        descriptionClass: "text-success-foreground/90",
+        className: "bg-primary",
+        iconClass: "text-foreground",
+        titleClass: "text-foreground",
+        descriptionClass: "text-foreground/90",
     },
     error: {
         icon: AlertCircle,

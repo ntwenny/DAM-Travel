@@ -60,7 +60,7 @@ export default function TabsLayout() {
                     headerShown: false,
                     tabBarStyle: { display: "none" },
                     tabBarIcon: () => (
-                        <View className="border-muted border-2 rounded-full elevation-lg -translate-y-2 p-4 bg-foreground ">
+                        <View className="border-muted border-2 rounded-full elevation-lg -translate-y-2 p-4 bg-white ">
                             <CameraIcon size={28} color="black" />
                         </View>
                     ),

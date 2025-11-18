@@ -15,6 +15,7 @@ import {
     Cloud,
     DollarSign,
     DollarSignIcon,
+    KeyIcon,
     List,
     ShoppingBagIcon,
     StarIcon,
@@ -27,10 +28,11 @@ import {
     Image,
     ScrollView,
     Linking,
+    RefreshControl,
 } from "react-native";
 import countryList from "country-list-js";
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "expo-router";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
     useSharedValue,
@@ -50,10 +52,11 @@ import { signOutCurrentUser } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/useToast";
 import { BudgetDialog } from "@/components/budget-dialog";
-import { useRouter } from "expo-router";
 import { useUser } from "@/hooks/useUser";
 import type { Trip, TripItem } from "@/types/user";
-import { getTripItems } from "@/lib/firebase";
+import { getTripItems, getTrips, updateUserProfile } from "@/lib/firebase";
+import { Modal } from "react-native";
+import { Input } from "@/components/ui/input";
 
 interface Country {
     name: string;
@@ -103,7 +106,11 @@ function TripItemCarousel({
             <Text className="text-2xl font-[JosefinSans-Bold] mb-2">
                 Trip Items
             </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingRight: 200 }}
+            >
                 {items.map((item) => (
                     <Card key={item.id} className="mr-4 min-w-60 w-40">
                         <TouchableOpacity onPress={() => onItemPress(item)}>
@@ -132,7 +139,7 @@ function TripItemCarousel({
                                     className="mt-2"
                                 >
                                     <DollarSignIcon
-                                        color="white"
+                                        color="black"
                                         className="mr-2 h-2 w-2"
                                     />
                                 </Button>
@@ -143,7 +150,7 @@ function TripItemCarousel({
                                     className="mt-2 shadow-xl border-border"
                                 >
                                     <ShoppingBagIcon
-                                        color="white"
+                                        color="black"
                                         className="mr-2 h-2 w-2"
                                         strokeWidth={0.9}
                                     />
@@ -155,7 +162,7 @@ function TripItemCarousel({
                                     className="mt-2"
                                 >
                                     <WrenchIcon
-                                        color="white"
+                                        color="black"
                                         className="mr-2 h-2 w-2"
                                         strokeWidth={0.8}
                                     />
@@ -171,23 +178,137 @@ function TripItemCarousel({
 
 export default function Home() {
     const { toast } = useToast();
-    const router = useRouter();
     const { user, userProfile } = useUser();
+    const [trips, setTrips] = useState<Trip[]>([]);
     const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
     const [tripItems, setTripItems] = useState<TripItem[]>([]);
     const [itemsLoading, setItemsLoading] = useState(false);
+    const [showNameDialog, setShowNameDialog] = useState(false);
+    const [nameValue, setNameValue] = useState("");
+    const [promptedForName, setPromptedForName] = useState(false);
+    const [savingName, setSavingName] = useState(false);
 
     useEffect(() => {
-        if (userProfile && userProfile.currentTripId) {
-            const trip =
-                userProfile.trips.find(
-                    (t) => t.id === userProfile.currentTripId
-                ) ?? null;
-            setCurrentTrip(trip);
+        if (userProfile) {
+            setTrips(userProfile.trips ?? []);
         } else {
-            setCurrentTrip(null);
+            setTrips([]);
         }
     }, [userProfile]);
+
+    // If the user's profile is missing a displayName, prompt once to collect it
+    useEffect(() => {
+        if (!promptedForName && userProfile) {
+            if (
+                !userProfile.displayName ||
+                userProfile.displayName.trim() === ""
+            ) {
+                setShowNameDialog(true);
+            }
+            setPromptedForName(true);
+        }
+    }, [userProfile, promptedForName]);
+
+    useEffect(() => {
+        if (!trips.length) {
+            setCurrentTrip(null);
+            return;
+        }
+
+        if (userProfile?.currentTripId) {
+            const match =
+                trips.find((t) => t.id === userProfile.currentTripId) ?? null;
+            if (match) {
+                setCurrentTrip(match);
+                return;
+            }
+        }
+
+        setCurrentTrip(trips[0] ?? null);
+    }, [trips, userProfile?.currentTripId]);
+
+    useFocusEffect(
+        useCallback(() => {
+            let isActive = true;
+
+            async function refreshTrips() {
+                if (!user) {
+                    if (isActive) {
+                        setTrips([]);
+                    }
+                    return;
+                }
+
+                try {
+                    const latest = await getTrips();
+                    if (!isActive) return;
+
+                    const normalized = Array.isArray(latest)
+                        ? (latest as Trip[])
+                        : [];
+                    setTrips(normalized);
+                } catch (error) {
+                    console.error("Failed to refresh trips", error);
+                    if (isActive) {
+                        toast({
+                            title: "Error",
+                            description: "Failed to refresh trips.",
+                            variant: "error",
+                        });
+                    }
+                }
+            }
+
+            refreshTrips();
+
+            return () => {
+                isActive = false;
+            };
+        }, [user, toast])
+    );
+
+    // Pull-to-refresh state + handler
+    const [refreshing, setRefreshing] = useState(false);
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        try {
+            if (!user) {
+                setTrips([]);
+                setTripItems([]);
+                setRefreshing(false);
+                return;
+            }
+
+            const latest = await getTrips();
+            const normalized = Array.isArray(latest) ? (latest as Trip[]) : [];
+            setTrips(normalized);
+
+            const newCurrent =
+                (userProfile?.currentTripId &&
+                    normalized.find(
+                        (t) => t.id === userProfile.currentTripId
+                    )) ||
+                normalized[0] ||
+                null;
+            setCurrentTrip(newCurrent);
+
+            if (newCurrent) {
+                const items = await getTripItems(newCurrent.id);
+                setTripItems(items as TripItem[]);
+            } else {
+                setTripItems([]);
+            }
+        } catch (error) {
+            console.error("Pull-to-refresh failed", error);
+            toast({
+                title: "Error",
+                description: "Failed to refresh data.",
+                variant: "error",
+            });
+        } finally {
+            setRefreshing(false);
+        }
+    }, [user, userProfile?.currentTripId, toast]);
 
     useEffect(() => {
         let mounted = true;
@@ -217,7 +338,7 @@ export default function Home() {
         return () => {
             mounted = false;
         };
-    }, [currentTrip]);
+    }, [currentTrip, toast]);
 
     const handleUpdateBudget = async (newBudget: number) => {
         // TODO: Implement budget update for the trip
@@ -319,7 +440,7 @@ export default function Home() {
 
         return (
             <AnimatedStarIcon
-                color="white"
+                color="black"
                 fill="white"
                 style={animatedStyle}
             />
@@ -339,34 +460,86 @@ export default function Home() {
     return (
         <SafeAreaView className="flex-1 bg-background">
             <Stars />
-            <View
-                style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    alignItems: "center",
-                    justifyContent: "center",
-                }}
+
+            {/* Prompt modal for missing display name */}
+            <Modal visible={showNameDialog} transparent animationType="fade">
+                <View className="flex-1 justify-center items-center bg-black/50">
+                    <View className="bg-background p-6 rounded-lg w-11/12 max-w-md">
+                        <Text className="text-xl font-[JosefinSans-Bold] mb-2">
+                            Hey — what's your name?
+                        </Text>
+                        <Text className="text-sm text-muted-foreground mb-4">
+                            We use your name to personalize your trips.
+                        </Text>
+                        <Input
+                            value={nameValue}
+                            onChangeText={setNameValue}
+                            placeholder="Full name"
+                            autoCapitalize="words"
+                        />
+                        <View className="flex-row justify-end gap-2 mt-4">
+                            <Button
+                                variant="outline"
+                                onPress={() => setShowNameDialog(false)}
+                                disabled={savingName}
+                            >
+                                <Text>Cancel</Text>
+                            </Button>
+                            <Button
+                                onPress={async () => {
+                                    if (!nameValue.trim()) return;
+                                    setSavingName(true);
+                                    try {
+                                        await updateUserProfile({
+                                            displayName: nameValue.trim(),
+                                        });
+                                        setShowNameDialog(false);
+                                        setNameValue("");
+                                        toast({
+                                            title: "Thanks!",
+                                            description:
+                                                "Your name has been saved.",
+                                            variant: "success",
+                                        });
+                                    } catch (err) {
+                                        console.error(
+                                            "Failed to save name",
+                                            err
+                                        );
+                                        toast({
+                                            title: "Error",
+                                            description:
+                                                "Failed to save your name.",
+                                            variant: "error",
+                                        });
+                                    } finally {
+                                        setSavingName(false);
+                                    }
+                                }}
+                                disabled={savingName}
+                            >
+                                <Text>Save</Text>
+                            </Button>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            <ScrollView
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                    />
+                }
             >
-                <View
-                    style={{
-                        width: 400,
-                        height: 400,
-                        borderRadius: 200,
-                        backgroundColor: "rgba(118, 56, 247, 0.2)",
-                        position: "absolute",
-                    }}
-                />
-            </View>
-            <ScrollView>
                 <View className="m-6 flex-1">
                     <View className="flex-row justify-between items-center mb-4">
                         <Text className="text-4xl font-[JosefinSans-Bold]">
                             Hi, {user?.displayName || "there"}
                         </Text>
                         <Button onPress={handleSignOut} variant="outline">
+                            <KeyIcon className="mr-2" color="black" />
                             <Text>Sign Out</Text>
                         </Button>
                     </View>
@@ -445,7 +618,7 @@ export default function Home() {
                         <CardContent>
                             <View className="flex-row justify-between items-center">
                                 <View className="flex-row items-center">
-                                    <DollarSign size={24} color="white" />
+                                    <DollarSign size={24} color="black" />
                                     <Text className="text-xl ml-2">
                                         ${(currentTrip?.budget ?? 0).toFixed(2)}
                                     </Text>
@@ -474,7 +647,7 @@ export default function Home() {
                                                 <View className="flex-row items-center">
                                                     <List
                                                         size={24}
-                                                        color="white"
+                                                        color="black"
                                                     />
                                                     <Text className="ml-4">
                                                         {item.name}
@@ -511,7 +684,7 @@ export default function Home() {
                         <ChinaLantern
                             width={120}
                             height={120}
-                            color="white"
+                            color="black"
                             fill="gray"
                         />
                     </View>
@@ -530,7 +703,7 @@ export default function Home() {
                     height={120}
                     className="-z-1"
                     width={150}
-                    color="white"
+                    color="black"
                     fill="white"
                 />
             </View>
@@ -543,7 +716,7 @@ export default function Home() {
                     zIndex: -1,
                 }}
             >
-                <Cloud size={90} className="-z-1" color="white" fill="white" />
+                <Cloud size={90} className="-z-1" color="black" fill="white" />
             </View>
         </SafeAreaView>
     );
