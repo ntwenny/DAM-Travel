@@ -51,8 +51,8 @@ const ItemRow = ({ name, quantity, priceLocal }: typeof MOCK_RECEIPT_DATA.items[
   <View className={`flex-row items-center justify-between p-3 my-2 bg-card rounded-lg border border-border`}>
     <View className="flex-1 mr-4">
       {/* Font size 18px and black text for item details */}
-      <Text className="text-lg font-semibold text-black dark:text-white">{name}</Text>
-      <Text className="text-lg text-gray-500 dark:text-gray-400">Qty {quantity}</Text>
+      <Text className="text-lg font-semibold text-black ">{name}</Text>
+      <Text className="text-lg text-gray-500 ">Qty {quantity}</Text>
     </View>
     <Text className="text-lg font-semibold text-right text-black dark:text-white">
       {formatCurrency(priceLocal, MOCK_RECEIPT_DATA.currencyLocal)}
@@ -67,9 +67,8 @@ const BreakdownRow = ({ label, amountLocal, type }: typeof MOCK_RECEIPT_DATA.bre
   const displayAmount = formatCurrency(Math.abs(amountLocal), MOCK_RECEIPT_DATA.currencyLocal);
 
 
-  // Determine color based on type
-  const textColor =
-    type === 'refund' ? `text-[${COLORS.taxRefundBlue}]` : `text-[${COLORS.red}]`;
+  // Force black text for breakdown rows (labels and amounts)
+  const textColor = 'text-black';
 
 
   return (
@@ -77,7 +76,7 @@ const BreakdownRow = ({ label, amountLocal, type }: typeof MOCK_RECEIPT_DATA.bre
       <View className="flex-row items-center">
         {/* Use a placeholder circle for visual consistency */}
         <View className={`w-3 h-3 rounded-full mr-2 ${type === 'refund' ? 'bg-[${COLORS.taxRefundBlue}]' : 'bg-[${COLORS.red}]'}`} />
-        <Text className="text-lg text-gray-700 dark:text-gray-300">{label}</Text>
+        <Text className="text-lg text-black">{label}</Text>
       </View>
       {/* Apply specific color and font size 18px */}
       <Text className={`text-lg font-medium ${textColor}`}>
@@ -107,11 +106,11 @@ export default function MockReceiptScreen() {
 
 
   const BestWayToPay = () => (
-    <View className="p-3 my-4 bg-yellow-50 rounded-lg border border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800">
-      <Text className="text-lg font-semibold text-yellow-800 dark:text-yellow-300">
+    <View className="p-3 my-4 bg-primary/30 rounded-lg border border-yellow-200">
+      <Text className="text-lg font-semibold">
         Best Way to Pay:
       </Text>
-      <Text className="text-lg text-yellow-900 dark:text-yellow-200">
+      <Text className="text-lg">
         Pay in **Cash** to save 5% on transaction fees!
       </Text>
     </View>
@@ -119,7 +118,7 @@ export default function MockReceiptScreen() {
 
 
   return (
-    <View className="flex-1 bg-gray-50 dark:bg-zinc-900">
+    <View className="flex-1 bg-background">
       <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
         {/* --- Top Section (Blue Background) --- */}
         <View className={`pt-12 pb-20 bg-[${COLORS.lightBlue}]`}>
@@ -160,7 +159,7 @@ export default function MockReceiptScreen() {
 
         {/* --- Receipt Body (White Background) --- */}
         <View className="px-4 mt-[-60]">
-          <View className="bg-white p-4 rounded-t-lg shadow-md dark:bg-zinc-800">
+          <View className="bg-background p-4 rounded-t-lg shadow-md">
             {/* Store Name and Date */}
             <Text className="text-[18px] font-bold text-black dark:text-white mb-1">{store}</Text>
             <Text className="text-[18px] text-gray-500 mb-4">{date}</Text>
@@ -201,22 +200,22 @@ export default function MockReceiptScreen() {
             {/* Dashed line separator (Light Grey) */}
             <View className={`border-t border-dashed border-[${COLORS.lightGrey}] mt-6 pt-4`}>
               <View className="flex-row justify-between items-center mb-1">
-                <Text className="text-[18px] font-bold text-black dark:text-white">Total</Text>
+                <Text className="text-[18px] font-bold text-black">Total</Text>
                 {/* Total amount is 18px, black text */}
-                <Text className="text-[18px] font-bold text-black dark:text-white">
+                <Text className="text-[18px] font-bold text-black">
                   {formatCurrency(totalLocal, currencyLocal)}
                 </Text>
               </View>
               {/* Home Currency Value (Value Gauge) - 18px, black text */}
               <View className="flex-row justify-end items-center">
-                <Text className="text-[18px] font-medium text-gray-500 dark:text-gray-400">
+                <Text className="text-[18px] font-medium text-gray-500">
                   (~{formatCurrency(totalHome, currencyHome)})
                 </Text>
               </View>
             </View>
            
             {/* Action Buttons */}
-            <TouchableOpacity className="mt-6 p-4 bg-blue-600 rounded-lg dark:bg-blue-500">
+            <TouchableOpacity className="mt-6 p-4 bg-blue-600 rounded-lg bg-primary">
                 <Text className="text-center text-[18px] font-bold text-white">
                     Add to Shopping Bag
                 </Text>

@@ -12,13 +12,13 @@ export default function TabsLayout() {
     return (
         <Tabs
             screenOptions={{
-                headerShown: true,
+                headerShown: false,
                 headerStyle: {
                     backgroundColor: "#18181B",
                 },
                 tabBarShowLabel: false,
                 tabBarStyle: {
-                    backgroundColor: "#18181B",
+                    backgroundColor: "#06ADD8",
                     borderTopWidth: 0,
                 },
                 tabBarActiveTintColor: "white",
@@ -60,7 +60,7 @@ export default function TabsLayout() {
                     headerShown: false,
                     tabBarStyle: { display: "none" },
                     tabBarIcon: () => (
-                        <View className="border-muted border-2 rounded-full elevation-lg -translate-y-2 p-4 bg-white ">
+                        <View className="border border-3 rounded-full elevation-lg -translate-y-2 p-4 bg-muted ">
                             <CameraIcon size={28} color="black" />
                         </View>
                     ),

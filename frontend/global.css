@@ -12,7 +12,7 @@
     --popover-foreground: 26 34 56;
     --primary: 51 187 237;
     --primary-foreground: 255 251 230;
-    --secondary: 247 200 115;
+    --secondary: 255 183 1;
     --secondary-foreground: 26 34 56;
     --muted: 229 229 223;
     --muted-foreground: 58 91 160;
@@ -23,7 +23,7 @@
     --border: 211 211 211;
     --input: 110 163 193;
     --ring: 247 200 115;
-    --chart-1: 58 91 160;
+    --chart: 249 140 31;
     --chart-2: 247 200 115;
     --chart-3: 110 163 193;
     --chart-4: 176 184 193;

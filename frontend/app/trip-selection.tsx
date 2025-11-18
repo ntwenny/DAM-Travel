@@ -46,7 +46,6 @@ import {
     observeAuthState,
     signInWithEmail,
     signUpWithEmail,
-    setCurrentTrip,
 } from "../lib/firebase";
 
 type TripOption = NonNullable<SelectOption>;
@@ -240,12 +239,8 @@ export default function TripSelectionScreen() {
 
     const isSignedIn = Boolean(user);
     const displayName = user?.displayName || user?.email || "Traveler";
-    const [settingTrip, setSettingTrip] = useState(false);
     const disablePrimaryAction =
-        loadingTrips ||
-        settingTrip ||
-        !selectedTrip?.value ||
-        tripsError !== null;
+        loadingTrips || !selectedTrip?.value || tripsError !== null;
 
     const showAuthOverlay = authReady && !isSignedIn;
     const showAuthForm = authReady && !isSignedIn && !isSigningUp;
@@ -258,7 +253,7 @@ export default function TripSelectionScreen() {
     }
 
     return (
-        <SafeAreaView className="flex-1 bg-background">
+        <SafeAreaView className="flex-1 bg-primary">
             <Stars />
             <View style={{ padding: 16 }}>
                 <TouchableOpacity onPress={() => router.back()}>
@@ -315,7 +310,7 @@ export default function TripSelectionScreen() {
                     >
                         <SelectTrigger className="w-full">
                             <SelectValue
-                                className="text-muted-foreground"
+                                className="text-muted"
                                 placeholder={
                                     loadingTrips
                                         ? "Loading trips…"
@@ -348,18 +343,9 @@ export default function TripSelectionScreen() {
                         </SelectContent>
                     </Select>
 
-                    <Button
-                        variant="outline"
-                        className="w-40 mt-2"
-                        onPress={() => {
-                            router.push("/diagnostics");
-                        }}
-                    >
-                        <Text>Diagnostics</Text>
-                    </Button>
                     {tripsError && (
                         <View className="mt-3 text-center items-center">
-                            <Text className="text-destructive text-sm">
+                            <Text className="text-muted text-sm">
                                 {tripsError}
                             </Text>
                             <Button
@@ -377,27 +363,14 @@ export default function TripSelectionScreen() {
                     >
                         <Button
                             className="font-bold flex flex-row items-center justify-center"
-                            onPress={async () => {
-                                if (!selectedTrip?.value) return;
-                                try {
-                                    setSettingTrip(true);
-                                    await setCurrentTrip(
-                                        String(selectedTrip.value)
-                                    );
-                                    router.push("/(tabs)/home");
-                                } finally {
-                                    setSettingTrip(false);
-                                }
-                            }}
+                            onPress={() => router.push("/(tabs)/home")}
                             disabled={disablePrimaryAction}
                         >
                             <PlaneLandingIcon color="white" className="mr-2" />
                             <Text>
-                                {settingTrip
-                                    ? "Loading…"
-                                    : disablePrimaryAction
-                                      ? "Select a trip"
-                                      : "Let's Go!"}
+                                {disablePrimaryAction
+                                    ? "Select a trip"
+                                    : "Let's Go!"}
                             </Text>
                         </Button>
 

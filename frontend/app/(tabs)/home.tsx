@@ -469,6 +469,7 @@ export default function Home() {
         <SafeAreaView className="flex-1 bg-background">
             <Stars />
 
+
             {/* Prompt modal for missing display name */}
             <Modal visible={showNameDialog} transparent animationType="fade">
                 <View className="flex-1 justify-center items-center bg-black/50">
@@ -541,50 +542,56 @@ export default function Home() {
                     />
                 }
             >
-                <View className="m-6 flex-1">
-                    <View className="flex-col justify-between items-start mb-4">
-                        <Text className="text-4xl font-[JosefinSans-Bold]">
-                            Hi, {user?.displayName || "there"}
-                        </Text>
-                        <Button onPress={handleSignOut} variant="destructive">
-                            <KeyIcon className="mr-2" color="white" />
-                            <Text className=" font-[JosefinSans-Bold]">
-                                Sign Out
+                {/* Full-width header band (edge-to-edge) */}
+                <View  className="w-full bg-primary pt-20">
+                    <View className="px-6 pb-4">
+                        <View className="flex-row justify-between items-start mb-2">
+                            <Text className="text-4xl font-[JosefinSans-Bold] text-white">
+                                Hi, {user?.displayName || "there"}
                             </Text>
-                        </Button>
-                    </View>
+                            <Button onPress={handleSignOut} variant="destructive" className="rounded-full bg-primary">
+                                <KeyIcon className="mr-2 " color="white" />
+                                <Text className=" text-sm font-[JosefinSans-Bold]">
+                                    Sign Out
+                                </Text>
+                            </Button>
+                        </View>
 
-                    <View className="mb-4">
-                        <Select>
-                            <SelectTrigger className="w-full">
-                                <SelectValue
-                                    className="text-muted-foreground"
-                                    placeholder="Select a location"
-                                />
-                            </SelectTrigger>
-                            <SelectContent
-                                ref={locationRef}
-                                insets={contentInsets}
-                            >
-                                <NativeSelectScrollView>
-                                    <SelectGroup>
-                                        {locations.map((location) => (
-                                            <SelectItem
-                                                key={location.value}
-                                                label={
-                                                    location.label +
-                                                    " (" +
-                                                    location.currency +
-                                                    ")"
-                                                }
-                                                value={location.value}
-                                            ></SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </NativeSelectScrollView>
-                            </SelectContent>
-                        </Select>
+                        <View>
+                            <Select>
+                                <SelectTrigger className="w-full bg-white/10 border border-white/30">
+                                    <SelectValue
+                                        className="text-white"
+                                        placeholder="Select a location"
+                                    />
+                                </SelectTrigger>
+                                <SelectContent
+                                    ref={locationRef}
+                                    insets={contentInsets}
+                                >
+                                    <NativeSelectScrollView>
+                                        <SelectGroup>
+                                            {locations.map((location) => (
+                                                <SelectItem
+                                                    key={location.value}
+                                                    label={
+                                                        location.label +
+                                                        " (" +
+                                                        location.currency +
+                                                        ")"
+                                                    }
+                                                    value={location.value}
+                                                ></SelectItem>
+                                            ))}
+                                        </SelectGroup>
+                                    </NativeSelectScrollView>
+                                </SelectContent>
+                            </Select>
+                        </View>
                     </View>
+                </View>
+
+                <View className="m-6 flex-1">
 
                     {currentTrip && (
                         <TripItemCarousel
@@ -642,7 +649,7 @@ export default function Home() {
                         />
                     )}
 
-                    <Card className="mb-4">
+                    <Card className="mb-4 bg-primary/30 border border-border">
                         <CardHeader>
                             <CardTitle>Budget</CardTitle>
                         </CardHeader>
@@ -665,7 +672,7 @@ export default function Home() {
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="mb-4 bg-primary/30 border border-border">
                         <CardHeader>
                             <CardTitle>Transactions</CardTitle>
                         </CardHeader>
@@ -730,13 +737,7 @@ export default function Home() {
                     zIndex: -1,
                 }}
             >
-                <Cloud
-                    height={120}
-                    className="-z-1"
-                    width={150}
-                    color="black"
-                    fill="white"
-                />
+ 
             </View>
             <View
                 style={{
@@ -747,7 +748,6 @@ export default function Home() {
                     zIndex: -1,
                 }}
             >
-                <Cloud size={90} className="-z-1" color="black" fill="white" />
             </View>
         </SafeAreaView>
     );

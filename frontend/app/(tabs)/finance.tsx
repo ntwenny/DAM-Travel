@@ -60,6 +60,20 @@ export default function FinanceScreen() {
         return categories.filter((c) => c.name.toLowerCase().includes(q));
     }, [categories, searchQuery]);
 
+    // Hard-coded header colors for the first three categories (by original order)
+    const categoryHeaderColors = [
+        'rgb(249,140,31)', // orange
+        'rgb(6, 173, 216)', // emerald/teal
+
+        'rgb(255, 183, 1)', // indigo
+    ];
+
+    function headerBgFor(catId: string) {
+        const idx = categories.findIndex((c) => c.id === catId);
+        const i = idx >= 0 ? idx % categoryHeaderColors.length : 0;
+        return categoryHeaderColors[i];
+    }
+
     // Open add transaction modal
     function openAddTransaction() {
         setTxAmount("");
@@ -138,7 +152,7 @@ export default function FinanceScreen() {
     }
 
     return (
-        <SafeAreaView className="flex-1 bg-gray-50">
+        <SafeAreaView className="flex-1 bg-background">
 
             <ScrollView
                 className="p-4"
@@ -150,14 +164,14 @@ export default function FinanceScreen() {
             >
 
                 <View className="items-center mb-5">
-                    <View className="rounded-lg bg-gray-200 border border-gray-200 p-4 w-full items-center">
+                    <View className="rounded-xl bg-card border border-border sha p-4 w-full items-center">
                         {(() => {
                             const remaining = Math.max(budget - totalSpent, 0);
                             const data = [
                                 {
                                     name: "Spent",
                                     population: Math.max(totalSpent, 0),
-                                    color: percent >= 1 ? "#99d1f5ff" : "#aadbffff",
+                                    color: percent >= 1 ? "#99d1f5ff" : "#e3f3ffff",
                                     legendFontColor: "#000",
                                     legendFontSize: 12,
                                 },
@@ -251,7 +265,7 @@ export default function FinanceScreen() {
                 {/* Spending categories */}
                 <View className="flex-row justify-between items-center mb-3">
                     <View className="flex-row justify-between items-center mb-3">
-                        <Pressable onPress={openAddTransaction} className="w-full px-4 py-4 rounded-lg flex-row bg-secondary items-center justify-center">
+                        <Pressable onPress={openAddTransaction} className="w-full px-4 py-4 rounded-lg flex-row bg-gray-300 border border-border items-center justify-center">
                             <Plus size={14} color="black" />
                             <Text className="text-lg font-medium ml-2">Add new transaction</Text>
                         </Pressable>
@@ -469,7 +483,7 @@ export default function FinanceScreen() {
                 {/* List of categories */}
                 {filteredCategories.map((cat) => (
                     <View key={cat.id} className=" mb-4 rounded-md border-gray-300 bg-white border border-gray-100 shadow-sm">
-                        <View className="bg-blue-500 rounded-tl-md rounded-tr-md px-2 py-3 flex-row justify-between items-center mb-2">
+                        <View style={{ backgroundColor: headerBgFor(cat.id) }} className="rounded-tl-md rounded-tr-md px-2 py-3 flex-row justify-between items-center mb-2">
 
                             {/* Category name (left) and actions (right: price + three-dots) */}
                             <View className="flex-row items-center">
