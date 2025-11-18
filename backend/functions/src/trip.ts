@@ -255,8 +255,9 @@ export async function addTripItemInternal(
         thumbnail: item.thumbnail,
         productPage: item.productPage,
         source: item.source,
+        source_icon: item.source_icon,
         _items: item._items,
-        parsingStatus: "NOT_READY",
+        parsingStatus: item.parsingStatus || "NOT_READY",
     };
 
     // Remove undefined fields before writing to Firestore

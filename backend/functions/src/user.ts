@@ -1,10 +1,12 @@
 import { UserProperties } from "@/types/user";
+import * as admin from "firebase-admin";
 import { firestore } from "firebase-admin";
 import { createTripInternal } from "./trip";
 import { auth } from "firebase-functions/v1";
 import * as logger from "firebase-functions/logger";
-import { HttpsError, onCall } from "firebase-functions/v1/https";
+import { HttpsError } from "firebase-functions/v1/https";
 import { getStorage } from "firebase-admin/storage";
+import * as functions from "firebase-functions";
 
 const database = firestore();
 
@@ -75,41 +77,6 @@ export const onUserCreate = auth.user().onCreate(async (user) => {
 });
 
 /**
- * Callable Cloud Function that updates the authenticated user's profile document in Firestore.
- *
- * Checks that the caller is authenticated and uses the caller's UID to update the document at
- * `users/{uid}` with the provided partial properties. Any Firestore update error is logged but
- * not rethrown (the function resolves normally after logging). Authentication failures result
- * in an HttpsError with code "unauthenticated".
- *
- * @param request - The callable request object. Expected shape:
- *   - request.auth: Authentication context. Must be present and contain `uid`.
- *   - request.data: Partial<UserProperties> containing fields to merge/update on the user's doc.
- *
- * @throws {HttpsError} Throws an HttpsError with code "unauthenticated" when `request.auth` is undefined.
- *
- * @remarks
- * - Side effects: updates the Firestore document at `users/{uid}` using `update(data)`.
- * - On Firestore update failures the error is logged via `logger.error` and not propagated.
- * - `request.data` is treated as a Partial<UserProperties>; callers should only include fields intended
- *   to be updated.
- */
-export const onUserModifyProfile = onCall(async (request) => {
-    if (request.auth === undefined) {
-        throw new HttpsError("unauthenticated", "User must be authenticated");
-    }
-
-    const uid = request.auth.uid;
-    const data = request.data as Partial<UserProperties>;
-
-    try {
-        await database.collection("users").doc(uid).update(data);
-    } catch (error) {
-        logger.error("Error updating user profile:", error);
-    }
-});
-
-/**
  * Cloud Function triggered when a Firebase Authentication user is deleted.
  *
  * Deletes the corresponding Firestore document in the "users" collection for the
@@ -136,5 +103,41 @@ export const onUserDelete = auth.user().onDelete(async (user) => {
         }
     } catch (error) {
         logger.error("Error deleting user profile:", error);
+    }
+});
+
+/**
+ * Callable function to update the authenticated user's profile.
+ * Updates both the Firestore user document and the Authentication displayName when provided.
+ */
+export const updateUser = functions.https.onCall(async (request) => {
+    console.log(request);
+    if (!request || !request.auth || !request.auth.uid) {
+        throw new HttpsError("unauthenticated", "User must be authenticated");
+    }
+
+    const uid = request.auth.uid;
+    const data = request.data as Partial<UserProperties>;
+
+    try {
+        if (data && Object.keys(data).length > 0) {
+            await database.collection("users").doc(uid).update(data);
+        }
+
+        // If a displayName was provided, mirror it to the Auth user profile as well.
+        if (data.displayName) {
+            try {
+                await admin.auth().updateUser(uid, {
+                    displayName: String(data.displayName),
+                });
+            } catch (authErr) {
+                logger.error("Failed to update auth displayName:", authErr);
+            }
+        }
+
+        return { success: true };
+    } catch (error) {
+        logger.error("Failed to update user:", error);
+        throw new HttpsError("internal", "Failed to update user profile");
     }
 });

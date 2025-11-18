@@ -13,7 +13,7 @@ import * as admin from "firebase-admin";
 admin.initializeApp();
 logger.info("App Initialized...");
 
-import { onUserCreate, onUserDelete, onUserModifyProfile } from "./user";
+import { onUserCreate, onUserDelete, updateUser } from "./user";
 import { onTripItemImageUpload } from "./comparison";
 import {
     addTripItem,
@@ -39,7 +39,7 @@ logger.info("Registering Functions...");
 
 export {
     onUserCreate,
-    onUserModifyProfile,
+    updateUser,
     onUserDelete,
     onTripItemImageUpload,
     addTripItem,

@@ -134,6 +134,16 @@ export async function getTripItem(tripId: string, tripItemId: string) {
     return res.data as any;
 }
 
+export async function updateUserProfile(data: {
+    displayName?: string;
+    photoURL?: string;
+    email?: string;
+}) {
+    const callable = httpsCallable(functions, "updateUser");
+    const res = await callable(data);
+    return res.data;
+}
+
 export async function updateTripItem(
     tripId: string,
     tripItemId: string,

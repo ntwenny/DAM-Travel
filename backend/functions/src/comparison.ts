@@ -21,24 +21,31 @@ function buildQueryFromVision(
     detections?: vision.protos.google.cloud.vision.v1.IWebDetection
 ): string {
     const entities = detections?.webEntities;
-    if (entities && entities.length > 0) {
-        const descriptions = entities
-            .filter((e) => (e.score || 0) >= 0.5 && e.description)
-            .map((e) => e.description!);
+    const descriptions: string[] = [];
 
-        const uniqueDescriptions = [...new Set(descriptions)];
-        if (uniqueDescriptions.length > 0) {
-            const query = uniqueDescriptions.join(" ");
-            logger.debug("Query from Vision WebEntities:", { query });
-            return query;
-        }
+    if (entities && entities.length > 0) {
+        descriptions.push(
+            ...entities
+                .slice(0, 3) // Take the first 3 web entities
+                .filter((e) => e.description)
+                .map((e) => e.description!)
+        );
     }
 
     const guess = detections?.bestGuessLabels?.[0]?.label?.trim();
-    logger.debug("Fallback to best guess from Vision:", { guess });
-    if (guess) return guess;
+    if (guess) {
+        descriptions.push(guess); // Add the best guess label
+    }
 
-    return "buy product";
+    if (descriptions.length > 0) {
+        const query = descriptions.join(" ");
+        logger.debug("Query from Vision WebEntities and Best Guess:", {
+            query,
+        });
+        return query;
+    }
+
+    return "buy product"; // Default fallback query
 }
 
 /**
@@ -239,7 +246,8 @@ async function searchGoogleShopping(query: string) {
             productPage: productUrl,
             thumbnail: r.thumbnail || r.image,
             extractedPrice: priceNum,
-            source: "google:shopping",
+            source: r.source,
+            source_icon: r.source_icon,
             extensions,
         } as ShoppingDetectionItem["pages"][number];
     });
@@ -358,6 +366,9 @@ export const onTripItemImageUpload = onObjectFinalized(
                 thumbnail: bestThumbnail,
                 productPage: primary.url,
                 source: primary.source,
+                source_icon: mergedPages.find(
+                    (p) => p.productPage === primary.url
+                )?.source_icon,
                 parsingStatus: "PARSED",
                 _items: { pages: shoppingFromSerp },
             };
