@@ -46,6 +46,7 @@ import {
     observeAuthState,
     signInWithEmail,
     signUpWithEmail,
+    setCurrentTrip,
 } from "../lib/firebase";
 
 type TripOption = NonNullable<SelectOption>;
@@ -239,8 +240,12 @@ export default function TripSelectionScreen() {
 
     const isSignedIn = Boolean(user);
     const displayName = user?.displayName || user?.email || "Traveler";
+    const [settingTrip, setSettingTrip] = useState(false);
     const disablePrimaryAction =
-        loadingTrips || !selectedTrip?.value || tripsError !== null;
+        loadingTrips ||
+        settingTrip ||
+        !selectedTrip?.value ||
+        tripsError !== null;
 
     const showAuthOverlay = authReady && !isSignedIn;
     const showAuthForm = authReady && !isSignedIn && !isSigningUp;
@@ -342,7 +347,6 @@ export default function TripSelectionScreen() {
                                 ))}
                         </SelectContent>
                     </Select>
-
                     {tripsError && (
                         <View className="mt-3 text-center items-center">
                             <Text className="text-muted text-sm">
@@ -363,14 +367,27 @@ export default function TripSelectionScreen() {
                     >
                         <Button
                             className="font-bold flex flex-row items-center justify-center"
-                            onPress={() => router.push("/(tabs)/home")}
+                            onPress={async () => {
+                                if (!selectedTrip?.value) return;
+                                try {
+                                    setSettingTrip(true);
+                                    await setCurrentTrip(
+                                        String(selectedTrip.value)
+                                    );
+                                    router.push("/(tabs)/home");
+                                } finally {
+                                    setSettingTrip(false);
+                                }
+                            }}
                             disabled={disablePrimaryAction}
                         >
                             <PlaneLandingIcon color="white" className="mr-2" />
                             <Text>
-                                {disablePrimaryAction
-                                    ? "Select a trip"
-                                    : "Let's Go!"}
+                                {settingTrip
+                                    ? "Loading…"
+                                    : disablePrimaryAction
+                                      ? "Select a trip"
+                                      : "Let's Go!"}
                             </Text>
                         </Button>
 
