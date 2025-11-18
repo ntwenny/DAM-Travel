@@ -284,7 +284,13 @@ export default function CartScreen() {
                                 );
                                 return;
                             }
-                            router.push("/mock-receipt");
+                            const selectedKeys = selectedItems.map((item) =>
+                                getItemKey(item)
+                            );
+                            router.push({
+                                pathname: "/mock-receipt",
+                                params: { ids: selectedKeys.join(",") },
+                            });
                         }}
                     >
                         <CalculatorIcon color="white" className="mr-2" />

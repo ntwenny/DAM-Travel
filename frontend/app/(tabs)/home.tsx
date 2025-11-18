@@ -68,7 +68,6 @@ import type { Trip, TripItem } from "@/types/user";
 import { Input } from "@/components/ui/input";
 import { useCart } from "@/context/cart-context";
 
-
 interface Country {
     name: string;
     iso2: string;
@@ -481,7 +480,6 @@ export default function Home() {
         <SafeAreaView className="flex-1 bg-background">
             <Stars />
 
-
             {/* Prompt modal for missing display name */}
             <Modal visible={showNameDialog} transparent animationType="fade">
                 <View className="flex-1 justify-center items-center bg-black/50">
@@ -554,27 +552,32 @@ export default function Home() {
                     />
                 }
             >
-
                 {/* Full-width header band (edge-to-edge) as logo background */}
                 <ImageBackground
                     source={require("../../assets/images/japan.jpeg")}
                     className="w-full pt-20"
                 >
-
                     <View className="px-6 pb-4">
                         <View className="mb-1">
                             <Image
                                 source={require("../../components/logo/skypocketlogo.png")}
-                                style={{ width: 160, height: 100, resizeMode: "contain" }}
+                                style={{
+                                    width: 160,
+                                    height: 100,
+                                    resizeMode: "contain",
+                                }}
                             />
                         </View>
                         <View className="flex-row justify-between items-start mb-2">
-
                             <Text className="text-4xl font-[JosefinSans-Bold] text-white">
                                 Hi, {user?.displayName || "there"}
                             </Text>
 
-                            <Button onPress={handleSignOut} variant="destructive" className="rounded-full bg-primary">
+                            <Button
+                                onPress={handleSignOut}
+                                variant="destructive"
+                                className="rounded-full bg-primary"
+                            >
                                 <KeyIcon className="mr-2 " color="white" />
                                 <Text className=" text-sm font-[JosefinSans-Bold]">
                                     Sign Out
@@ -617,7 +620,6 @@ export default function Home() {
                 </ImageBackground>
 
                 <View className="m-6 flex-1">
-
                     {currentTrip && (
                         <TripItemCarousel
                             items={tripItems}
@@ -698,9 +700,18 @@ export default function Home() {
                     </Card>
                     {/* Trip selector: choose which trip to view locally (dropdown) */}
                     <View className="mt-4">
-                        <Text className="text-sm text-muted-foreground mb-2">Select trip</Text>
+                        <Text className="text-sm text-muted-foreground mb-2">
+                            Select trip
+                        </Text>
                         <Select
-                            value={currentTrip?.id ?? undefined}
+                            value={
+                                currentTrip
+                                    ? {
+                                          label: currentTrip.name,
+                                          value: currentTrip.id,
+                                      }
+                                    : undefined
+                            }
                             onValueChange={async (val) => {
                                 // `val` may be a raw string (id) or an Option object
                                 // (some Select usages provide the full option object).
@@ -709,10 +720,11 @@ export default function Home() {
                                 const tripId: string | undefined =
                                     typeof anyVal === "string"
                                         ? anyVal
-                                        : anyVal?.value ?? undefined;
+                                        : (anyVal?.value ?? undefined);
 
                                 const picked = tripId
-                                    ? trips.find((x) => x.id === tripId) ?? null
+                                    ? (trips.find((x) => x.id === tripId) ??
+                                      null)
                                     : null;
                                 const prev = currentTrip;
                                 // optimistic local update
@@ -729,10 +741,14 @@ export default function Home() {
                                         variant: "success",
                                     });
                                 } catch (err) {
-                                    console.error("Failed to set current trip", err);
+                                    console.error(
+                                        "Failed to set current trip",
+                                        err
+                                    );
                                     toast({
                                         title: "Error",
-                                        description: "Unable to save active trip. Reverting.",
+                                        description:
+                                            "Unable to save active trip. Reverting.",
                                         variant: "error",
                                     });
                                     // revert local state
@@ -743,13 +759,24 @@ export default function Home() {
                             }}
                         >
                             <SelectTrigger className="w-full bg-white p-2 rounded border border-border mb-2">
-                                <SelectValue className={currentTrip ? 'text-black' : 'text-muted-foreground'} placeholder="Choose a trip" />
+                                <SelectValue
+                                    className={
+                                        currentTrip
+                                            ? "text-black"
+                                            : "text-muted-foreground"
+                                    }
+                                    placeholder="Choose a trip"
+                                />
                             </SelectTrigger>
                             <SelectContent insets={contentInsets}>
                                 <NativeSelectScrollView>
                                     <SelectGroup>
                                         {trips.map((t) => (
-                                            <SelectItem key={t.id} value={t.id} label={t.name} />
+                                            <SelectItem
+                                                key={t.id}
+                                                value={t.id}
+                                                label={t.name}
+                                            />
                                         ))}
                                     </SelectGroup>
                                 </NativeSelectScrollView>
@@ -827,9 +854,7 @@ export default function Home() {
                     opacity: 1,
                     zIndex: -1,
                 }}
-            >
-
-            </View>
+            ></View>
             <View
                 style={{
                     position: "absolute",
@@ -838,8 +863,7 @@ export default function Home() {
                     opacity: 0.5,
                     zIndex: -1,
                 }}
-            >
-            </View>
+            ></View>
         </SafeAreaView>
     );
 }

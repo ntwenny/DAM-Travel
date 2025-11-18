@@ -1,37 +1,39 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { ArrowLeftIcon, ShoppingBagIcon } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCart } from '@/context/cart-context';
+import type { CartItem } from '@/types/user';
+// No backend calls here; compute a simple local tax.
 
 
-// --- Mock Data (Kept the same for functionality) ---
-const MOCK_RECEIPT_DATA = {
-  store: 'iPhone 16 Pro - 2 (Mock Store Name)',
-  date: '10/15/2025 14:30',
-  totalLocal: 1185.19,
-  currencyLocal: 'USD',
-  currencyHome: 'EUR',
-  exchangeRate: 0.92,
-  items: [
-    { name: 'Item name 1', quantity: 2, priceLocal: 200.99 },
-    { name: 'Item name 2', quantity: 2, priceLocal: 200.99 },
-    { name: 'Item name 3', quantity: 2, priceLocal: 200.99 },
-  ],
-  breakdown: [
-    { label: 'Sales Tax', amountLocal: -20.75, type: 'fee' },
-    { label: 'Tax Refund', amountLocal: 20.75, type: 'refund' },
-    { label: 'Transaction Fee', amountLocal: -20.75, type: 'fee' },
-  ],
+type ReceiptItem = {
+  id: string;
+  name: string;
+  quantity: number;
+  price: number;
+  currency?: string;
 };
 
 
-// Helper function to format currency (keep this)
-const formatCurrency = (amount: number, currency: string) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 2,
-  }).format(amount);
+// Helper function to format currency robustly with code or symbol
+const formatAmount = (amount: number | string, currency?: string) => {
+  const num = typeof amount === 'number' ? amount : Number(amount);
+  if (!Number.isFinite(num)) return '—';
+  if (!currency) return `$${num.toFixed(2)}`;
+  if (/^[A-Z]{3}$/.test(currency)) {
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency,
+        minimumFractionDigits: 2,
+      }).format(num);
+    } catch {
+      // Fallback to symbol-like formatting
+      return `${currency}${num.toFixed(2)}`;
+    }
+  }
+  return `${currency}${num.toFixed(2)}`;
 };
 
 
@@ -46,25 +48,29 @@ const COLORS = {
 
 
 // --- Component for an Item Row ---
-const ItemRow = ({ name, quantity, priceLocal }: typeof MOCK_RECEIPT_DATA.items[0]) => (
+const ItemRow = ({ name, quantity, price, currency }: ReceiptItem) => {
+  const unit = formatAmount(price, currency);
+  const lineTotal = formatAmount((price || 0) * (quantity || 0), currency);
+  return (
   // Use a transparent background with light grey border for the item box
   <View className={`flex-row items-center justify-between p-3 my-2 bg-card rounded-lg border border-border`}>
     <View className="flex-1 mr-4">
       {/* Font size 18px and black text for item details */}
       <Text className="text-lg font-semibold text-black ">{name}</Text>
       <Text className="text-lg text-gray-500 ">Qty {quantity}</Text>
+      <Text className="text-base text-gray-600 ">{unit} each</Text>
     </View>
     <Text className="text-lg font-semibold text-right text-black dark:text-white">
-      {formatCurrency(priceLocal, MOCK_RECEIPT_DATA.currencyLocal)}
+      {lineTotal}
     </Text>
   </View>
-);
+)};
 
 
 // --- Component for a Fee/Refund Row ---
-const BreakdownRow = ({ label, amountLocal, type }: typeof MOCK_RECEIPT_DATA.breakdown[0]) => {
+const BreakdownRow = ({ label, amountLocal, type }: { label: string; amountLocal: number; type: 'fee' | 'refund' }) => {
   const isFee = amountLocal < 0;
-  const displayAmount = formatCurrency(Math.abs(amountLocal), MOCK_RECEIPT_DATA.currencyLocal);
+  const displayAmount = formatAmount(Math.abs(amountLocal));
 
 
   // Force black text for breakdown rows (labels and amounts)
@@ -90,18 +96,38 @@ const BreakdownRow = ({ label, amountLocal, type }: typeof MOCK_RECEIPT_DATA.bre
 
 // --- Main Mock Receipt Screen Component ---
 export default function MockReceiptScreen() {
-  const {
-    store,
-    date,
-    totalLocal,
-    currencyLocal,
-    currencyHome,
-    exchangeRate,
-    items,
-    breakdown,
-  } = MOCK_RECEIPT_DATA;
+  const { cartItems } = useCart();
+  const params = useLocalSearchParams<{ ids?: string }>();
+  const selectedIds = useMemo(() => {
+    if (!params?.ids) return null;
+    return new Set(params.ids.split(',').filter(Boolean));
+  }, [params]);
 
+  const getItemKey = (item: CartItem) => item.tripItemId || (item as any).id;
 
+  const items: ReceiptItem[] = useMemo(() => {
+    const base = selectedIds
+      ? cartItems.filter((ci) => selectedIds.has(getItemKey(ci)))
+      : cartItems;
+    return base.map((ci) => ({
+      id: getItemKey(ci),
+      name: ci.name ?? 'Item',
+      quantity: Number(ci.quantity ?? 1) || 1,
+      price: Number(ci.price ?? 0) || 0,
+      currency: ci.currency,
+    }));
+  }, [cartItems, selectedIds]);
+
+  const store = 'Cart Summary';
+  const date = new Date().toLocaleString();
+  const currencyLocal = items.find((i) => !!i.currency)?.currency || 'USD';
+  const subtotal = items.reduce((sum, i) => sum + (i.price || 0) * (i.quantity || 0), 0);
+  const TAX_RATE = 0.03; // 3%
+  const tax = subtotal * TAX_RATE;
+  const totalLocal = subtotal + tax;
+  const breakdown: Array<{ label: string; amountLocal: number; type: 'fee' | 'refund' }> = [];
+  const currencyHome = currencyLocal;
+  const exchangeRate = 1;
   const totalHome = totalLocal * exchangeRate;
 
 
@@ -139,7 +165,7 @@ export default function MockReceiptScreen() {
 
           {/* Total Price (White text, 32px) */}
           <Text className="text-[32px] font-bold text-center text-white mt-4">
-            {formatCurrency(totalLocal, currencyLocal).replace(currencyLocal, '')}
+            {formatAmount(totalLocal, currencyLocal).replace(String(currencyLocal), '')}
           </Text>
         </View>
        
@@ -161,7 +187,7 @@ export default function MockReceiptScreen() {
         <View className="px-4 mt-[-60]">
           <View className="bg-background p-4 rounded-t-lg shadow-md">
             {/* Store Name and Date */}
-            <Text className="text-[18px] font-bold text-black dark:text-white mb-1">{store}</Text>
+            <Text className="text-[18px] font-bold text-black mb-1">{store}</Text>
             <Text className="text-[18px] text-gray-500 mb-4">{date}</Text>
            
             {/* Dashed line separator (Light Grey) */}
@@ -176,10 +202,9 @@ export default function MockReceiptScreen() {
 
 
             {/* Item List */}
-            {items.map((item, index) => (
-              <React.Fragment key={index}>
+            {items.map((item) => (
+              <React.Fragment key={item.id}>
                 <ItemRow {...item} />
-                {/* Separator between items (no dashed line needed here, as the box acts as separation) */}
               </React.Fragment>
             ))}
 
@@ -200,16 +225,28 @@ export default function MockReceiptScreen() {
             {/* Dashed line separator (Light Grey) */}
             <View className={`border-t border-dashed border-[${COLORS.lightGrey}] mt-6 pt-4`}>
               <View className="flex-row justify-between items-center mb-1">
+                <Text className="text-[18px] font-bold text-black">Subtotal</Text>
+                <Text className="text-[18px] font-bold text-black">
+                  {formatAmount(subtotal, currencyLocal)}
+                </Text>
+              </View>
+              <View className="flex-row justify-between items-center mb-1">
+                <Text className="text-[18px] font-bold text-black">Tax (3%)</Text>
+                <Text className="text-[18px] font-bold text-black">
+                  {formatAmount(tax, currencyLocal)}
+                </Text>
+              </View>
+              <View className="flex-row justify-between items-center mb-1">
                 <Text className="text-[18px] font-bold text-black">Total</Text>
                 {/* Total amount is 18px, black text */}
                 <Text className="text-[18px] font-bold text-black">
-                  {formatCurrency(totalLocal, currencyLocal)}
+                  {formatAmount(totalLocal, currencyLocal)}
                 </Text>
               </View>
               {/* Home Currency Value (Value Gauge) - 18px, black text */}
               <View className="flex-row justify-end items-center">
                 <Text className="text-[18px] font-medium text-gray-500">
-                  (~{formatCurrency(totalHome, currencyHome)})
+                  (~{formatAmount(totalHome, currencyHome)})
                 </Text>
               </View>
             </View>
