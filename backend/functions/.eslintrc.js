@@ -30,5 +30,7 @@ module.exports = {
         // Allow unused variables (sometimes present during development or for signatures)
         "no-unused-vars": "off",
         "@typescript-eslint/no-unused-vars": "off",
+        "max-len": ["warn", { code: 100 }],
+        "require-jsdoc": "off",
     },
 };
