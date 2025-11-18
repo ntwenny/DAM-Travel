@@ -29,6 +29,9 @@ import {
     ScrollView,
     Linking,
     RefreshControl,
+    Dimensions,
+    Modal,
+    ActivityIndicator,
 } from "react-native";
 import countryList from "country-list-js";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -48,14 +51,19 @@ import StatueOfLiberty from "@/assets/images/statue_of_liberty.svg";
 import SouthDance from "@/assets/images/south_dance.svg";
 import Boat from "@/assets/images/boat.svg";
 import Penguin from "@/assets/images/penguin.svg";
-import { signOutCurrentUser } from "@/lib/firebase";
+import {
+    signOutCurrentUser,
+    getTripItems,
+    getTrips,
+    updateUserProfile,
+    setCurrentTrip as remoteSetCurrentTrip,
+} from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/useToast";
 import { BudgetDialog } from "@/components/budget-dialog";
 import { useUser } from "@/hooks/useUser";
 import type { Trip, TripItem } from "@/types/user";
-import { getTripItems, getTrips, updateUserProfile } from "@/lib/firebase";
-import { Modal } from "react-native";
+// Modal is provided by react-native in the main import block
 import { Input } from "@/components/ui/input";
 import { useCart } from "@/context/cart-context";
 
@@ -191,11 +199,13 @@ export default function Home() {
     const [trips, setTrips] = useState<Trip[]>([]);
     const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
     const [tripItems, setTripItems] = useState<TripItem[]>([]);
-    const [itemsLoading, setItemsLoading] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [_itemsLoading, setItemsLoading] = useState(false);
     const [showNameDialog, setShowNameDialog] = useState(false);
     const [nameValue, setNameValue] = useState("");
     const [promptedForName, setPromptedForName] = useState(false);
     const [savingName, setSavingName] = useState(false);
+    const [savingTrip, setSavingTrip] = useState(false);
 
     useEffect(() => {
         if (userProfile) {
@@ -367,7 +377,8 @@ export default function Home() {
                 variant: "info",
             });
             router.replace("/trip-selection");
-        } catch (error) {
+        } catch (err) {
+            console.error(err);
             toast({
                 title: "Error",
                 description: "Failed to sign out.",
@@ -415,8 +426,7 @@ export default function Home() {
     const AnimatedStarIcon = Animated.createAnimatedComponent(StarIcon);
 
     function AnimatedStar({ star }: { star: (typeof starPositions)[0] }) {
-        const { width, height } =
-            require("react-native").Dimensions.get("window");
+        const { width, height } = Dimensions.get("window");
         const opacity = useSharedValue(star.opacity);
         useEffect(() => {
             opacity.value = withRepeat(
@@ -431,7 +441,7 @@ export default function Home() {
                 -1,
                 true
             );
-        }, []);
+        }, [star.opacity, opacity]);
 
         const animatedStyle = useAnimatedStyle(() => {
             return {
@@ -475,7 +485,7 @@ export default function Home() {
                 <View className="flex-1 justify-center items-center bg-black/50">
                     <View className="bg-background p-6 rounded-lg w-11/12 max-w-md">
                         <Text className="text-xl font-[JosefinSans-Bold] mb-2">
-                            Hey — what's your name?
+                            Hey — what&apos;s your name?
                         </Text>
                         <Text className="text-sm text-muted-foreground mb-4">
                             We use your name to personalize your trips.
@@ -671,6 +681,72 @@ export default function Home() {
                             </Text>
                         </CardContent>
                     </Card>
+                    {/* Trip selector: choose which trip to view locally (dropdown) */}
+                    <View className="mt-4">
+                        <Text className="text-sm text-muted-foreground mb-2">Select trip</Text>
+                        <Select
+                            value={currentTrip ? { label: currentTrip.name, value: currentTrip.id } : undefined}
+                            onValueChange={async (val) => {
+                                // `val` may be a raw string (id) or an Option object
+                                // (some Select usages provide the full option object).
+                                // Normalize to a string tripId before calling backend.
+                                const anyVal: any = val;
+                                const tripId: string | undefined =
+                                    typeof anyVal === "string"
+                                        ? anyVal
+                                        : anyVal?.value ?? undefined;
+
+                                const picked = tripId
+                                    ? trips.find((x) => x.id === tripId) ?? null
+                                    : null;
+                                const prev = currentTrip;
+                                // optimistic local update
+                                setCurrentTrip(picked);
+
+                                if (!tripId) return;
+
+                                try {
+                                    setSavingTrip(true);
+                                    await remoteSetCurrentTrip(tripId);
+                                    toast({
+                                        title: "Saved",
+                                        description: "Active trip updated.",
+                                        variant: "success",
+                                    });
+                                } catch (err) {
+                                    console.error("Failed to set current trip", err);
+                                    toast({
+                                        title: "Error",
+                                        description: "Unable to save active trip. Reverting.",
+                                        variant: "error",
+                                    });
+                                    // revert local state
+                                    setCurrentTrip(prev);
+                                } finally {
+                                    setSavingTrip(false);
+                                }
+                            }}
+                        >
+                            <SelectTrigger className="w-full bg-white p-2 rounded border border-border mb-2">
+                                <SelectValue className={currentTrip ? 'text-black' : 'text-muted-foreground'} placeholder="Choose a trip" />
+                            </SelectTrigger>
+                            <SelectContent insets={contentInsets}>
+                                <NativeSelectScrollView>
+                                    <SelectGroup>
+                                        {trips.map((t) => (
+                                            <SelectItem key={t.id} value={t.id} label={t.name} />
+                                        ))}
+                                    </SelectGroup>
+                                </NativeSelectScrollView>
+                            </SelectContent>
+                        </Select>
+
+                        {savingTrip && (
+                            <View className="mt-2">
+                                <ActivityIndicator size="small" color="#000" />
+                            </View>
+                        )}
+                    </View>
 
                     <Card className="mb-4 bg-primary/30 border border-border">
                         <CardHeader>

@@ -199,6 +199,24 @@ export async function clearCartItems(tripId: string) {
     return res.data as { removed: number };
 }
 
+// Build a receipt for a set of items in a trip (server-computed totals)
+export async function createReceiptForTrip(
+    tripId: string,
+    items: Array<Record<string, unknown>>
+): Promise<{
+    items: any[];
+    subtotal: number;
+    tax: number;
+    serviceFee: number;
+    total: number;
+    currency?: string;
+    country?: string;
+}> {
+    const callable = httpsCallable(functions, "createReceipt");
+    const res = await callable({ tripId, items });
+    return res.data as any;
+}
+
 export async function updateBudget(budget: number) {
     const callable = httpsCallable(functions, "updateBudget");
     await callable({ budget });
@@ -278,6 +296,7 @@ export default {
     addTransaction,
     deleteTransaction,
     editTransaction,
+    createReceiptForTrip,
     storage,
     firestore,
 };
