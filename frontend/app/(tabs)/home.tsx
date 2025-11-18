@@ -124,9 +124,15 @@ function TripItemCarousel({
                             <Text className="text-foreground font-[JosefinSans-Light] text-start p-2">
                                 {item.name}
                             </Text>
-                            <Text className="text-foreground font-[JosefinSans-Regular] text-start p-2">
-                                Source: {item.source}
-                            </Text>
+                            <View className="flex flex-row flex-shrink items-center">
+                                <Image
+                                    source={{ uri: item.source_icon }}
+                                    className="w-4 h-4"
+                                />
+                                <Text className="text-foreground font-[JosefinSans-Regular] text-start p-2">
+                                    {item.source}
+                                </Text>
+                            </View>
                             <Text className="text-foreground font-[JosefinSans-Regular] text-start p-2">
                                 Available For: $
                                 {item.price?.toFixed(2) || "N/A"}
@@ -536,13 +542,15 @@ export default function Home() {
                 }
             >
                 <View className="m-6 flex-1">
-                    <View className="flex-row justify-between items-center mb-4">
+                    <View className="flex-col justify-between items-start mb-4">
                         <Text className="text-4xl font-[JosefinSans-Bold]">
                             Hi, {user?.displayName || "there"}
                         </Text>
-                        <Button onPress={handleSignOut} variant="outline">
-                            <KeyIcon className="mr-2" color="black" />
-                            <Text>Sign Out</Text>
+                        <Button onPress={handleSignOut} variant="destructive">
+                            <KeyIcon className="mr-2" color="white" />
+                            <Text className=" font-[JosefinSans-Bold]">
+                                Sign Out
+                            </Text>
                         </Button>
                     </View>
 
