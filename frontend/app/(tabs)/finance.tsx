@@ -1,24 +1,93 @@
 import "@/global.css";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Plus, Trash2, Search, Edit } from "lucide-react-native";
-import { Pressable, ScrollView, Text, TextInput, View, Dimensions, Alert, Modal, KeyboardAvoidingView, Platform } from "react-native";
+import { Pressable, ScrollView, Text, TextInput, View, Dimensions, Alert, Modal, KeyboardAvoidingView, Platform, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { PieChart } from "react-native-chart-kit";
+import { Svg, Circle } from "react-native-svg";
+import {
+    getFinance,
+    updateBudget as updateBudgetBackend,
+    addCategory as addCategoryBackend,
+    deleteCategory as deleteCategoryBackend,
+    addTransaction as addTransactionBackend,
+    deleteTransaction as deleteTransactionBackend,
+    editTransaction as editTransactionBackend,
+    auth,
+    observeAuthState
+} from '@/lib/firebase';
 
 type Item = { id: string; name: string; amount: number; timestamp?: number };
 type Category = { id: string; name: string; items: Item[] };
 
+// Circular Progress Component
+const CircularProgress = ({ 
+  spent, 
+  total, 
+  size = 220, 
+  strokeWidth = 20 
+}: { 
+  spent: number; 
+  total: number; 
+  size?: number; 
+  strokeWidth?: number;
+}) => {
+  const percentage = Math.min((spent / total) * 100, 100);
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <View className="items-center justify-center" style={{ width: size, height: size }}>
+      {/* Background circle (light gray) */}
+      <Svg width={size} height={size} style={{ position: 'absolute' }}>
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#ECEEF0"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+      </Svg>
+      
+      {/* Progress circle (blue) */}
+      <Svg 
+        width={size} 
+        height={size} 
+        style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}
+      >
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#06ADD8"
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+        />
+      </Svg>
+
+      {/* Center text */}
+      <View className="items-center justify-center">
+        <Text className="text-3xl font-bold text-black">
+          ${spent.toFixed(2)}
+        </Text>
+        <Text className="text-base text-gray-500 mt-1">Spent</Text>
+      </View>
+    </View>
+  );
+};
 
 export default function FinanceScreen() {
     // State for budget and categories
-    const [budget, setBudget] = useState<number>(1200);
+    const [budget, setBudget] = useState<number>(0);
+    const [categories, setCategories] = useState<Category[]>([]);
 
-    // State for categories and items
-    const [categories, setCategories] = useState<Category[]>([
-        { id: "c1", name: "Food", items: [{ id: "i1", name: "Groceries", amount: 120, timestamp: Date.now() - 1000 * 60 * 60 * 24 }, { id: "i2", name: "Coffee", amount: 25, timestamp: Date.now() - 1000 * 60 * 30 }] },
-        { id: "c2", name: "Entertainment", items: [{ id: "i3", name: "Movies", amount: 45, timestamp: Date.now() - 1000 * 60 * 60 * 5 }] },
-        { id: "c3", name: "Transport", items: [{ id: "i4", name: "Gas", amount: 60, timestamp: Date.now() - 1000 * 60 * 60 * 2 }] },
-    ]);
+    // Loading and auth state
+    const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState(auth.currentUser);
 
     // Calculate total spent
     const totalSpent = useMemo(() => {
@@ -31,9 +100,6 @@ export default function FinanceScreen() {
         return Math.min(totalSpent / budget, 1);
     }, [totalSpent, budget]);
 
-    // (helper removed) update logic handled in edit modal and add transaction flow
-
-
     // Modal state for adding a new transaction
     const [modalVisible, setModalVisible] = useState(false);
     const [txAmount, setTxAmount] = useState("");
@@ -43,14 +109,53 @@ export default function FinanceScreen() {
     // Search state for filtering categories
     const [searchQuery, setSearchQuery] = useState("");
 
+    // Observe auth state changes
+    useEffect(() => {
+        const unsubscribe = observeAuthState((currentUser) => {
+            setUser(currentUser);
+        });
+        return unsubscribe;
+    }, []);
+
+    // Load finance data when user is authenticated
+    useEffect(() => {
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+
+        async function loadFinance() {
+            try {
+                setLoading(true);
+
+                console.log('Loading finance data for user:', user.uid);
+                const financeData = await getFinance();
+                console.log('Finance data loaded:', financeData);
+
+                setBudget(financeData.budget || 0);
+                setCategories(financeData.categories || []);
+                // Set the first category as selected if available
+                if (financeData.categories && financeData.categories.length > 0) {
+                    setSelectedCategoryId(financeData.categories[0].id);
+                }
+            } catch (err: any) {
+                console.error('Failed to load finance data:', err);
+                console.error(`Error details: ${err.message} (code: ${err.code})`);
+                Alert.alert('Error', `Failed to load finance data: ${err.message || 'Unknown error'}`);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        loadFinance();
+    }, [user]);
+
     // Category menu + edit modal state
     const [menuOpenFor, setMenuOpenFor] = useState<string | null>(null);
     const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
     const [editItems, setEditItems] = useState<Item[]>([]);
-    const [chartHeight, setChartHeight] = useState<number>(250);
-    const [overlayHeight, setOverlayHeight] = useState<number>(0);
     const [budgetEditModalVisible, setBudgetEditModalVisible] = useState(false);
     const [budgetEditValue, setBudgetEditValue] = useState(String(budget));
 
@@ -64,7 +169,6 @@ export default function FinanceScreen() {
     const categoryHeaderColors = [
         'rgb(249,140,31)', // orange
         'rgb(6, 173, 216)', // emerald/teal
-
         'rgb(255, 183, 1)', // indigo
     ];
 
@@ -84,7 +188,7 @@ export default function FinanceScreen() {
     }
 
     // Save new transaction
-    function saveTransaction() {
+    async function saveTransaction() {
         // Validate amount
         const amount = parseFloat(txAmount) || 0;
         if (!amount || amount <= 0) {
@@ -92,33 +196,44 @@ export default function FinanceScreen() {
             return;
         }
 
-        let targetCatId = selectedCategoryId;
+        try {
+            let targetCatId = selectedCategoryId;
 
-        // If user provided a new category name, create it
-        if (newCategoryName.trim() !== "") {
-            const newCatId = Date.now().toString();
-            const newCat: Category = { id: newCatId, name: newCategoryName.trim(), items: [] };
-            setCategories((prev) => [newCat, ...prev]);
-            targetCatId = newCatId;
-        }
+            // If user provided a new category name, create it
+            if (newCategoryName.trim() !== "") {
+                const newCat = await addCategoryBackend(newCategoryName.trim());
+                setCategories((prev) => [newCat, ...prev]);
+                targetCatId = newCat.id;
+            }
 
-        // Ensure we have a valid category to add the item to
-        if (!targetCatId) {
-            Alert.alert("No category", "Please choose or create a category.");
-            return;
+            // Ensure we have a valid category to add the item to
+            if (!targetCatId) {
+                Alert.alert("No category", "Please choose or create a category.");
+                return;
+            }
+
+            // Create new item via backend
+            const itemName = txDesc.trim() || "Transaction";
+            const newItem = await addTransactionBackend(targetCatId, itemName, amount);
+
+            // Add item to the selected category in local state
+            setCategories((prev) => prev.map((c) => c.id === targetCatId ? { ...c, items: [newItem, ...c.items] } : c));
+            setModalVisible(false);
+        } catch (err) {
+            console.error('Failed to save transaction:', err);
+            Alert.alert("Error", "Failed to save transaction");
         }
-        // Create new item
-        const itemId = Date.now().toString();
-        const itemName = txDesc.trim() || "Transaction";
-        const newItem: Item = { id: itemId, name: itemName, amount, timestamp: Date.now() };
-        // Add item to the selected category
-        setCategories((prev) => prev.map((c) => c.id === targetCatId ? { ...c, items: [newItem, ...c.items] } : c));
-        setModalVisible(false);
     }
 
     // Delete handlers
-    function deleteCategory(catId: string) {
-        setCategories((prev) => prev.filter((c) => c.id !== catId));
+    async function deleteCategory(catId: string) {
+        try {
+            await deleteCategoryBackend(catId);
+            setCategories((prev) => prev.filter((c) => c.id !== catId));
+        } catch (err) {
+            console.error('Failed to delete category:', err);
+            Alert.alert("Error", "Failed to delete category");
+        }
     }
 
     // Confirm delete handlers
@@ -130,11 +245,17 @@ export default function FinanceScreen() {
     }
 
     //  Delete item
-    function deleteItem(catId: string, itemId: string) {
-        setCategories((prev) => prev.map((c) => {
-            if (c.id !== catId) return c;
-            return { ...c, items: c.items.filter((it) => it.id !== itemId) };
-        }));
+    async function deleteItem(catId: string, itemId: string) {
+        try {
+            await deleteTransactionBackend(catId, itemId);
+            setCategories((prev) => prev.map((c) => {
+                if (c.id !== catId) return c;
+                return { ...c, items: c.items.filter((it) => it.id !== itemId) };
+            }));
+        } catch (err) {
+            console.error('Failed to delete item:', err);
+            Alert.alert("Error", "Failed to delete item");
+        }
     }
 
     // Confirm delete item
@@ -151,9 +272,27 @@ export default function FinanceScreen() {
         setMenuPosition(null);
     }
 
+    // Show loading indicator while fetching data
+    if (loading) {
+        return (
+            <SafeAreaView className="flex-1 bg-background items-center justify-center">
+                <ActivityIndicator size="large" color="#06ADD8" />
+                <Text className="text-gray-500 mt-4">Loading finance data...</Text>
+            </SafeAreaView>
+        );
+    }
+
+    // Show message if user is not authenticated
+    if (!user) {
+        return (
+            <SafeAreaView className="flex-1 bg-background items-center justify-center">
+                <Text className="text-gray-500">Please sign in to view finance data</Text>
+            </SafeAreaView>
+        );
+    }
+
     return (
         <SafeAreaView className="flex-1 bg-background">
-
             <ScrollView
                 className="p-4"
                 contentInsetAdjustmentBehavior="never"
@@ -162,107 +301,41 @@ export default function FinanceScreen() {
                 keyboardDismissMode="on-drag"
                 showsVerticalScrollIndicator={true}
             >
-
+                {/* Budget Overview Card */}
                 <View className="items-center mb-5">
-                    <View className="rounded-xl bg-card border border-border sha p-4 w-full items-center">
-                        {(() => {
-                            const remaining = Math.max(budget - totalSpent, 0);
-                            const data = [
-                                {
-                                    name: "Spent",
-                                    population: Math.max(totalSpent, 0),
-                                    color: percent >= 1 ? "#99d1f5ff" : "#e3f3ffff",
-                                    legendFontColor: "#000",
-                                    legendFontSize: 12,
-                                },
-                                {
-                                    name: "Remaining",
-                                    population: remaining,
-                                    color: "#33BBED",
-                                    legendFontColor: "#190a0aff",
-                                    legendFontSize: 12,
-                                },
-                            ];
+                    <View className="rounded-xl bg-card border border-border p-6 w-full items-center">
+                        {/* Header with Budget and Edit Button */}
+                        <View className="w-full flex-row items-center justify-between mb-4">
+                            <View style={{ width: 40 }} />
+                            <View className="items-center">
+                                <Text className="text-sm text-gray-500">Monthly budget</Text>
+                                <Text className="text-2xl font-bold text-black">${Number(budget).toFixed(2)}</Text>
+                            </View>
+                            <Pressable
+                                onPress={() => { setBudgetEditValue(String(budget)); setBudgetEditModalVisible(true); }}
+                                style={{ padding: 8, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.05)' }}
+                            >
+                                <Edit size={18} color="#111" />
+                            </Pressable>
+                        </View>
 
-                            const screenWidth = Math.min(360, Dimensions.get("window").width - 32);
+                        {/* Circular Progress Indicator */}
+                        <CircularProgress 
+                            spent={totalSpent} 
+                            total={budget}
+                        />
 
-                            return (
-                                <View className="w-full items-center" style={{ position: 'relative' }}>
-
-                                    <View onLayout={(e) => setChartHeight(e.nativeEvent.layout.height)}>
-                                        <PieChart
-                                            data={data}
-                                            width={screenWidth}
-                                            height={270}
-                                            chartConfig={{
-                                                backgroundColor: "transparent",
-                                                backgroundGradientFrom: "transparent",
-                                                backgroundGradientTo: "transparent",
-                                                color: (opacity = 1) => `rgba(0,0,0,${opacity})`,
-                                            }}
-                                            hasLegend={false}
-                                            accessor="population"
-                                            backgroundColor="transparent"
-                                            paddingLeft="90"
-                                            center={[0, 0]}
-                                            absolute
-                                            style={{ alignSelf: 'center' }}
-                                        />
-                                    </View>
-
-
-                                    {/* Header row above the chart: budget centered, edit button right (prevents overlapping the pie) */}
-                                    <View className="w-full flex-row items-center justify-between px-2 mb-2">
-                                        <View style={{ width: 40 }} />
-                                        <View className="items-center">
-                                            <Text className="text-sm text-gray-700">Budget</Text>
-                                            <Text className="text-lg font-semibold">${Number(budget).toFixed(2)}</Text>
-                                        </View>
-                                        <Pressable
-                                            onPress={() => { setBudgetEditValue(String(budget)); setBudgetEditModalVisible(true); }}
-                                            style={{ padding: 6, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.65)' }}
-                                        >
-                                            <Edit size={16} color="#111" />
-                                        </Pressable>
-                                    </View>
-                                    {/* Overlay: Remaining amount on top of the pie (centered dynamically). Width now fits content only */}
-                                    <View
-                                        className="rounded px-3 py-2"
-                                        pointerEvents="none"
-                                        onLayout={(e) => setOverlayHeight(e.nativeEvent.layout.height)}
-                                        style={{ position: 'absolute', top: Math.max(0, (chartHeight - overlayHeight) / 2), alignSelf: 'center', backgroundColor: 'rgba(255,255,255,0.75)' }}
-                                    >
-                                        <Text className="text-xl font-semibold">${Math.max(remaining, 0).toFixed(2)}</Text>
-                                        <Text className="text-sm text-black">Remaining</Text>
-                                    </View>
-
-                                    {/* Legend row: Spent and Remaining */}
-                                    <View className="flex-row items-center mt-3 ">
-                                        <View className="flex-row mr-2 items-center">
-                                            <View style={{ width: 10, height: 10, borderRadius: 6, backgroundColor: data[0].color }} />
-                                            <View className="ml-2">
-                                                <Text className="text-sm text-gray-700">Spent</Text>
-                                                <Text className="text-sm font-semibold">${Math.max(totalSpent, 0).toFixed(2)}</Text>
-                                            </View>
-                                        </View>
-
-                                        <View className="flex-row ml-2 items-center">
-                                            <View style={{ width: 10, height: 10, borderRadius: 6, backgroundColor: data[1].color }} />
-                                            <View className="ml-2">
-                                                <Text className="text-sm text-gray-700">Remaining</Text>
-                                                <Text className="text-sm font-semibold">${remaining.toFixed(2)}</Text>
-                                            </View>
-                                        </View>
-                                    </View>
-                                </View>
-                            );
-                        })()}
-
-
+                        {/* Remaining Amount */}
+                        <View className="flex-row items-center mt-6">
+                            <Text className="text-base text-gray-700 mr-2">Left to spend:</Text>
+                            <Text className="text-xl font-semibold" style={{ color: '#06ADD8' }}>
+                                ${Math.max(budget - totalSpent, 0).toFixed(2)}
+                            </Text>
+                        </View>
                     </View>
                 </View>
 
-                {/* Spending categories */}
+                {/* Add Transaction Button */}
                 <View className="flex-row justify-between items-center mb-3">
                     <View className="flex-row justify-between items-center mb-3">
                         <Pressable onPress={openAddTransaction} className="w-full px-4 py-4 rounded-lg flex-row bg-gray-300 border border-border items-center justify-center">
@@ -274,14 +347,13 @@ export default function FinanceScreen() {
 
                 {/* Search bar for categories */}
                 <View className="mb-5 w-full">
-                    <View className="flex-row items-center bg-white border border-gray-300 rounded-full px-3 py-2">
+                    <View className="flex-row items-center bg-white border border-gray-300 rounded-full px-3 py-3">
                         <Search size={16} color="#9CA3AF" />
                         <TextInput
                             value={searchQuery}
                             onChangeText={setSearchQuery}
-                            placeholder="Search categories"
-                            placeholderTextColor="#9CA3AF"
-                            className="ml-2 flex-1 text-black"
+                            className="ml-2 flex-1 text-black py-0"
+                            textAlignVertical="center"
                         />
                     </View>
                 </View>
@@ -298,7 +370,6 @@ export default function FinanceScreen() {
                             style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16 }}
                             onPress={() => setModalVisible(false)}
                         >
-                            {/* inner Pressable consumes taps so backdrop onPress won't fire when tapping the card */}
                             <Pressable onPress={() => { }} className="bg-white p-4 rounded-lg border border-gray-200 w-full" style={{ maxWidth: 520 }}>
                                 <Text className="text-lg font-semibold mb-2">Add new transaction</Text>
 
@@ -357,7 +428,7 @@ export default function FinanceScreen() {
                     </KeyboardAvoidingView>
                 </Modal>
 
-                {/* Budget edit modal (opens when tapping edit icon) */}
+                {/* Budget edit modal */}
                 <Modal
                     visible={budgetEditModalVisible}
                     animationType="fade"
@@ -385,7 +456,17 @@ export default function FinanceScreen() {
                                     <Pressable onPress={() => setBudgetEditModalVisible(false)} className="px-4 py-2 mr-2">
                                         <Text className="text-black">Cancel</Text>
                                     </Pressable>
-                                    <Pressable onPress={() => { setBudget(Number(budgetEditValue) || 0); setBudgetEditModalVisible(false); }} className="bg-primary px-4 py-2 rounded">
+                                    <Pressable onPress={async () => {
+                                        try {
+                                            const newBudget = Number(budgetEditValue) || 0;
+                                            await updateBudgetBackend(newBudget);
+                                            setBudget(newBudget);
+                                            setBudgetEditModalVisible(false);
+                                        } catch (err) {
+                                            console.error('Failed to update budget:', err);
+                                            Alert.alert("Error", "Failed to update budget");
+                                        }
+                                    }} className="bg-primary px-4 py-2 rounded">
                                         <Text className="text-white font-semibold">Save</Text>
                                     </Pressable>
                                 </View>
@@ -394,7 +475,7 @@ export default function FinanceScreen() {
                     </KeyboardAvoidingView>
                 </Modal>
 
-                {/* Overlay menu popup (doesn't push layout) */}
+                {/* Overlay menu popup */}
                 {menuOpenFor && menuPosition && (
                     <Modal visible={true} transparent animationType="fade" onRequestClose={closeMenu}>
                         <Pressable style={{ flex: 1 }} onPress={closeMenu}>
@@ -435,7 +516,7 @@ export default function FinanceScreen() {
                     </Modal>
                 )}
 
-                {/* Edit items modal (per-category) */}
+                {/* Edit items modal */}
                 <Modal
                     visible={editModalVisible}
                     animationType="slide"
@@ -468,10 +549,22 @@ export default function FinanceScreen() {
                                 <Pressable onPress={() => setEditModalVisible(false)} className="px-4 py-2 mr-2">
                                     <Text className="text-black">Cancel</Text>
                                 </Pressable>
-                                <Pressable onPress={() => {
+                                <Pressable onPress={async () => {
                                     if (!editingCategoryId) return setEditModalVisible(false);
-                                    setCategories((prev) => prev.map((c) => c.id === editingCategoryId ? { ...c, items: editItems } : c));
-                                    setEditModalVisible(false);
+
+                                    try {
+                                        // Update each item in the backend
+                                        for (const item of editItems) {
+                                            await editTransactionBackend(editingCategoryId, item);
+                                        }
+
+                                        // Update local state
+                                        setCategories((prev) => prev.map((c) => c.id === editingCategoryId ? { ...c, items: editItems } : c));
+                                        setEditModalVisible(false);
+                                    } catch (err) {
+                                        console.error('Failed to update items:', err);
+                                        Alert.alert("Error", "Failed to update items");
+                                    }
                                 }} className="bg-primary px-4 py-2 rounded">
                                     <Text className="text-white font-semibold">Save</Text>
                                 </Pressable>
@@ -484,8 +577,6 @@ export default function FinanceScreen() {
                 {filteredCategories.map((cat) => (
                     <View key={cat.id} className=" mb-4 rounded-md border-gray-300 bg-white border border-gray-100 shadow-sm">
                         <View style={{ backgroundColor: headerBgFor(cat.id) }} className="rounded-tl-md rounded-tr-md px-2 py-3 flex-row justify-between items-center mb-2">
-
-                            {/* Category name (left) and actions (right: price + three-dots) */}
                             <View className="flex-row items-center">
                                 <Text className="text-white text-lg mr-3">{cat.name}</Text>
                             </View>
@@ -504,20 +595,18 @@ export default function FinanceScreen() {
                                 </Pressable>
                             </View>
                         </View>
-                        {/* No items message */}
+                        
                         {cat.items.length === 0 && (
-                            <Text className="text-muted-foreground mb-2">No items yet. Add one below.</Text>
+                            <Text className="text-muted-foreground mb-2 px-3">No items yet. Add one above.</Text>
                         )}
-                        {/* List of items */}
+                        
                         {cat.items.map((it) => (
                             <View key={it.id} className="flex-row justify-between items-center mb-2 border-s mx-3 border-blue-500 px-2">
-                                {/* Item details */}
                                 <View>
                                     <Text className="text-black text-[17px]">{it.name}</Text>
                                     <Text className="text-gray-500 text-sm mt-1">{new Date(it.timestamp ?? 0).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</Text>
                                 </View>
                                 <View className="flex-row items-center">
-                                    {/* Item amount and delete button */}
                                     <Text className="text-black text-[17px]"> $ {String(it.amount)} </Text>
                                     <Pressable onPress={() => confirmDeleteItem(cat.id, it.id)} className="ml-2 p-2">
                                         <Trash2 size={14} color="#ef4444" />
@@ -525,9 +614,6 @@ export default function FinanceScreen() {
                                 </View>
                             </View>
                         ))}
-                        {/* Category actions: delete only (add via modal) */}
-
-
                     </View>
                 ))}
             </ScrollView>

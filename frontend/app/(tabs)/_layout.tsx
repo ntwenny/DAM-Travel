@@ -18,10 +18,10 @@ export default function TabsLayout() {
                 },
                 tabBarShowLabel: false,
                 tabBarStyle: {
-                    backgroundColor: "#06ADD8",
+                    backgroundColor: "#ffffffff",
                     borderTopWidth: 0,
                 },
-                tabBarActiveTintColor: "white",
+                tabBarActiveTintColor: "black",
                 tabBarInactiveTintColor: "gray",
             }}
         >
@@ -60,8 +60,8 @@ export default function TabsLayout() {
                     headerShown: false,
                     tabBarStyle: { display: "none" },
                     tabBarIcon: () => (
-                        <View className="border border-3 rounded-full elevation-lg -translate-y-2 p-4 bg-muted ">
-                            <CameraIcon size={28} color="black" />
+                        <View className="border border-white rounded-full elevation-lg -translate-y-2 p-4 bg-secondary">
+                            <CameraIcon size={28} color="white" />
                         </View>
                     ),
                 }}
