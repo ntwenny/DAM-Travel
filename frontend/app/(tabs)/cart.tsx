@@ -18,6 +18,7 @@ import {
     CalculatorIcon,
 } from "lucide-react-native";
 import { useCart } from "@/context/cart-context";
+import { useCurrency } from "@/context/currency-context";
 import { router } from "expo-router";
 import type { CartItem } from "@/types/user";
 
@@ -29,6 +30,7 @@ import { Icon } from "@/components/ui/icon";
 export default function CartScreen() {
     const { cartItems, updateQuantity, removeFromCart, clearCart, updateHomeTax, loading } =
         useCart();
+    const { convertAmount, displayCurrency } = useCurrency();
     const [selected, setSelected] = useState<Record<string, boolean>>({});
 
     const getItemKey = useCallback(
@@ -60,6 +62,7 @@ export default function CartScreen() {
         (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
         0
     );
+    const totalDisplay = convertAmount(total);
 
     const toggleSelected = (id: string) => {
         setSelected((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -171,12 +174,8 @@ export default function CartScreen() {
                                                     {item.name}
                                                 </Text>
                                                 <Text className="font-[JosefinSans-Regular] text-lg text-muted-foreground">
-                                                    {item.currency
-                                                        ? `${item.currency} `
-                                                        : "$"}
-                                                    {(item.price || 0).toFixed(
-                                                        2
-                                                    )}
+                                                    {displayCurrency}{" "}
+                                                    {convertAmount(item.price || 0).toFixed(2)}
                                                 </Text>
                                             </View>
                                         </View>
@@ -316,7 +315,7 @@ export default function CartScreen() {
                             Selected ({selectedItems.length})
                         </Text>
                         <Text className="font-['JosefinSans-Regular'] text-2xl font-semibold text-foreground">
-                            ${total.toFixed(2)}
+                            {displayCurrency} {totalDisplay.toFixed(2)}
                         </Text>
                     </View>
                     <Button

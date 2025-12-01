@@ -16,6 +16,7 @@ import {
     observeAuthState
 } from '@/lib/firebase';
 import { useUser } from '@/hooks/useUser';
+import { useCurrency } from "@/context/currency-context";
 
 type Item = { id: string; name: string; amount: number; timestamp?: number };
 type Category = { id: string; name: string; items: Item[] };
@@ -89,12 +90,14 @@ export default function FinanceScreen() {
     // Loading and auth state
     const [loading, setLoading] = useState(true);
     const { user, userProfile } = useUser();
+    const { convertAmount, displayCurrency, setBaseCurrency, setDisplayCurrency } = useCurrency();
     const currentTripId = userProfile?.currentTripId;
 
     // Calculate total spent
     const totalSpent = useMemo(() => {
         return categories.reduce((sum, c) => sum + c.items.reduce((s, it) => s + Number(it.amount || 0), 0), 0);
     }, [categories]);
+    const totalSpentDisplay = convertAmount(totalSpent);
 
     // Calculate percent of budget spent
     const percent = useMemo(() => {
@@ -158,6 +161,17 @@ export default function FinanceScreen() {
         if (!q) return categories;
         return categories.filter((c) => c.name.toLowerCase().includes(q));
     }, [categories, searchQuery]);
+
+    // Sync currency base/display when trip changes
+    useEffect(() => {
+        if (userProfile?.currentTripId) {
+            const tripCurrency = categories.length > 0 ? displayCurrency : (userProfile as any)?.currency;
+            if (tripCurrency) {
+                setBaseCurrency(tripCurrency);
+                setDisplayCurrency(tripCurrency);
+            }
+        }
+    }, [userProfile?.currentTripId, setBaseCurrency, setDisplayCurrency]);
 
     // Hard-coded header colors for the first three categories (by original order)
     const categoryHeaderColors = [
@@ -326,7 +340,9 @@ export default function FinanceScreen() {
                             <View style={{ width: 40 }} />
                             <View className="items-center">
                                 <Text className="text-sm text-gray-500">Monthly budget</Text>
-                                <Text className="text-2xl font-bold text-black">${Number(budget).toFixed(2)}</Text>
+                                <Text className="text-2xl font-bold text-black">
+                                    {displayCurrency} {Number(convertAmount(budget)).toFixed(2)}
+                                </Text>
                             </View>
                             <Pressable
                                 onPress={() => { setBudgetEditValue(String(budget)); setBudgetEditModalVisible(true); }}
@@ -346,7 +362,7 @@ export default function FinanceScreen() {
                         <View className="flex-row items-center mt-6">
                             <Text className="text-base text-gray-700 mr-2">Left to spend:</Text>
                             <Text className="text-xl font-semibold" style={{ color: '#06ADD8' }}>
-                                ${Math.max(budget - totalSpent, 0).toFixed(2)}
+                                {displayCurrency} {Number(convertAmount(Math.max(budget - totalSpent, 0))).toFixed(2)}
                             </Text>
                         </View>
                     </View>

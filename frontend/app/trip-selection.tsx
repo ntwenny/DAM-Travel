@@ -48,6 +48,8 @@ import {
     signUpWithEmail,
     setCurrentTrip,
 } from "../lib/firebase";
+const countryList = require("country-list-js");
+const locations = Object.values(countryList.all);
 
 type TripOption = NonNullable<SelectOption>;
 
@@ -132,6 +134,7 @@ export default function TripSelectionScreen() {
     const [createVisible, setCreateVisible] = useState(false);
     const [creatingTrip, setCreatingTrip] = useState(false);
     const [newTripName, setNewTripName] = useState("");
+    const [newTripDestination, setNewTripDestination] = useState("");
     const [isSigningUp, setIsSigningUp] = useState(false);
 
     const loadTrips = useCallback(async () => {
@@ -222,14 +225,21 @@ export default function TripSelectionScreen() {
         }
         setCreatingTrip(true);
         setTripsError(null);
+        if (!newTripDestination) {
+            setTripsError("Destination is required.");
+            return;
+        }
+        const selectedLocation = locations.find((l: any) => l.value === newTripDestination);
+        const tripCurrency = selectedLocation?.currency?.currencyCode || "USD";
         try {
             await createTrip({ 
                 name: trimmedName,
-                location: "US", // change to not be hardcoded
-                currency: "USD", // change to not be hardcoded
+                location: newTripDestination,
+                currency: tripCurrency,
             });
             setCreateVisible(false);
             setNewTripName("");
+            setNewTripDestination("");
             await loadTrips();
         } catch (err) {
             console.error("Failed to create trip", err);
@@ -472,6 +482,29 @@ export default function TripSelectionScreen() {
                             onChangeText={setNewTripName}
                             className="bg-white/10 text-white p-2 rounded-md mb-3"
                         />
+                        <Text className="text-sm text-white mb-1">Destination</Text>
+                        <Select
+                            value={
+                                newTripDestination
+                                    ? { value: newTripDestination, label: locations.find((l: any) => l.value === newTripDestination)?.label || newTripDestination }
+                                    : undefined
+                            }
+                            onValueChange={(val) => setNewTripDestination((val as any)?.value || (val as string) || "")}
+                        >
+                            <SelectTrigger className="bg-white/10 text-white p-3 rounded-md mb-3">
+                                <SelectValue placeholder="Select destination" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem disabled value="placeholder" label="Select destination">
+                                    Select destination
+                                </SelectItem>
+                                {locations.map((loc: any) => (
+                                    <SelectItem key={loc.value} value={loc.value} label={loc.label}>
+                                        {loc.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         <View className="flex-row justify-end">
                             <Button
                                 variant="ghost"

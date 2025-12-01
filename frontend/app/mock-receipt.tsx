@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useCurrency } from '@/context/currency-context';
 
 
 type ReceiptItem = {
@@ -120,6 +121,7 @@ const BreakdownRow = ({ label, amountLocal, type }: { label: string; amountLocal
 export default function MockReceiptScreen() {
   const { userProfile } = useUser();
   const { cartItems } = useCart();
+  const { convertAmount, displayCurrency, setBaseCurrency, setDisplayCurrency } = useCurrency();
   const params = useLocalSearchParams<{ ids?: string }>();
   const selectedIds = useMemo(() => {
     if (!params?.ids) return null;
@@ -168,6 +170,14 @@ export default function MockReceiptScreen() {
     fetchReceipt();
   }, [userProfile?.currentTripId, params?.ids, cartItems.length]);
 
+  // Sync base/display currency to current trip
+  useEffect(() => {
+    if (userProfile?.currentTripId && receipt?.currency) {
+      setBaseCurrency(receipt.currency);
+      setDisplayCurrency(receipt.currency);
+    }
+  }, [userProfile?.currentTripId, receipt?.currency, setBaseCurrency, setDisplayCurrency]);
+
   useEffect(() => {
     async function loadFinance() {
       if (!userProfile?.currentTripId) return;
@@ -181,7 +191,7 @@ export default function MockReceiptScreen() {
     loadFinance();
   }, [userProfile?.currentTripId]);
   
-  const currencyLocal = receipt?.currency || 'USD';
+  const currencyLocal = displayCurrency || receipt?.currency || 'USD';
   const subtotal = receipt?.subtotal || 0;
   const tax = receipt?.tax || 0;
   const totalLocal = receipt?.total || 0;
@@ -190,9 +200,10 @@ export default function MockReceiptScreen() {
     { label: 'Service Fee', amountLocal: serviceFee, type: 'fee' as const }
   ] : [];
   const taxRate = receipt?.taxRate || 0;
-  const currencyHome = 'USD'; // Assume home currency is USD for this mockup
-  const exchangeRate = 1.0; // Assume 1:1 for simplicity
-  const totalHome = totalLocal * exchangeRate;
+  const totalDisplay = convertAmount(totalLocal);
+  const subtotalDisplay = convertAmount(subtotal);
+  const taxDisplay = convertAmount(tax);
+  const serviceFeeDisplay = convertAmount(serviceFee);
 
   async function handleApplyToBudget() {
     if (!userProfile?.currentTripId || !finance) return;
@@ -279,14 +290,14 @@ export default function MockReceiptScreen() {
             {/* Top Right: Currency Button (Orange) */}
             <View className={`flex-row items-center px-4 py-2 bg-[${COLORS.orange}] rounded-full shadow-md`}>
               <Text className="text-lg font-bold text-white pr-1">$</Text>
-              <Text className="text-lg font-bold text-white">{currencyLocal}</Text>
+              <Text className="text-lg font-bold text-white">{displayCurrency || currencyLocal}</Text>
             </View>
           </View>
 
 
           {/* Total Price (White text, 32px) */}
           <Text className="text-[32px] font-bold text-center text-white mt-4">
-            {formatAmount(totalLocal, currencyLocal).replace(String(currencyLocal), '')}
+            {formatAmount(totalDisplay, displayCurrency || currencyLocal).replace(String(displayCurrency || currencyLocal), '')}
           </Text>
         </View>
        
@@ -348,26 +359,20 @@ export default function MockReceiptScreen() {
               <View className="flex-row justify-between items-center mb-1">
                 <Text className="text-[18px] font-bold text-black">Subtotal</Text>
                 <Text className="text-[18px] font-bold text-black">
-                  {formatAmount(subtotal, currencyLocal)}
+                  {formatAmount(subtotalDisplay, displayCurrency || currencyLocal)}
                 </Text>
               </View>
               <View className="flex-row justify-between items-center mb-1">
                 <Text className="text-[18px] font-bold text-black">Tax ({(taxRate * 100).toFixed(1)}%)</Text>
                 <Text className="text-[18px] font-bold text-black">
-                  {formatAmount(tax, currencyLocal)}
+                  {formatAmount(taxDisplay, displayCurrency || currencyLocal)}
                 </Text>
               </View>
               <View className="flex-row justify-between items-center mb-1">
                 <Text className="text-[18px] font-bold text-black">Total</Text>
                 {/* Total amount is 18px, black text */}
                 <Text className="text-[18px] font-bold text-black">
-                  {formatAmount(totalLocal, currencyLocal)}
-                </Text>
-              </View>
-              {/* Home Currency Value (Value Gauge) - 18px, black text */}
-              <View className="flex-row justify-end items-center">
-                <Text className="text-[18px] font-medium text-gray-500">
-                  (~{formatAmount(totalHome, currencyHome)})
+                  {formatAmount(totalDisplay, displayCurrency || currencyLocal)}
                 </Text>
               </View>
             </View>

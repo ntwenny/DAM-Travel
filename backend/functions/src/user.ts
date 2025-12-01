@@ -40,21 +40,6 @@ export const onUserCreate = auth.user().onCreate(async (user) => {
     // Create user profile in Firestore
     await database.collection("users").doc(user.uid).set(userProfile);
 
-    // Create a default trip for the new user using shared trip creation helper
-    try {
-      const now = new Date();
-      await createTripInternal(user.uid, {
-        name: "My First Trip",
-        location: "KR", // change to not be hardcoded
-        currency: "USD", // change to not be hardcoded
-        budget: 0,
-        startDate: now,
-        endDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
-      });
-    } catch (err) {
-      logger.error("Failed to create default trip for user:", err);
-    }
-
     // Create user directory in Storage by adding a placeholder file
     const bucket = getStorage().bucket();
     const userDirPath = `users/${user.uid}/.init`;

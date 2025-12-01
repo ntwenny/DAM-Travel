@@ -214,27 +214,45 @@ export const editTransaction = functions.https.onCall(async (request) => {
 
 
 export const convertCurrency = functions.https.onCall(async (request) => {
-  const { amount, from, to } = request.data;
+  const {amount, from, to} = request.data || {};
 
-  if (!amount || !from || !to) {
-    throw new functions.https.HttpsError("invalid-argument", "Missing fields.");
+  if (!from || !to) {
+    throw new functions.https.HttpsError("invalid-argument", "Missing currency codes.");
   }
 
-  const apiKey = process.env.EXCHANGERATE_API_KEY;
+  const amt = Number(amount ?? 1);
+  if (!Number.isFinite(amt) || amt <= 0) {
+    // If caller didn't supply an amount, default to 1; otherwise require positive
+    if (amount !== undefined) {
+      throw new functions.https.HttpsError("invalid-argument", "Amount must be a positive number.");
+    }
+  }
+
+  const apiKey = process.env.EXCHANGE_RATE_API_KEY;
+  if (!apiKey) {
+    throw new functions.https.HttpsError("failed-precondition", "Missing exchange rate API key");
+  }
 
   const url = `https://v6.exchangerate-api.com/v6/${apiKey}/latest/${from}`;
 
   const response = await fetch(url);
+  if (!response.ok) {
+    throw new functions.https.HttpsError("internal", `Failed to fetch rates (${response.status})`);
+  }
   const body = await response.json();
 
-  const rate = body.conversion_rates[to];
-  const converted = amount * rate;
+  const rate = body?.conversion_rates?.[to];
+  if (!rate || !Number.isFinite(rate)) {
+    throw new functions.https.HttpsError("not-found", "Conversion rate unavailable");
+  }
+  const converted = amt * rate;
 
   return {
     from,
     to,
     rate,
-    originalAmount: amount,
+    originalAmount: amt,
     convertedAmount: converted,
+    timestamp: Date.now(),
   };
 });

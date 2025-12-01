@@ -70,6 +70,7 @@ import type { Trip, TripItem } from "@/types/user";
 // Modal is provided by react-native in the main import block
 import { Input } from "@/components/ui/input";
 import { useCart } from "@/context/cart-context";
+import { useCurrency } from "@/context/currency-context";
 
 interface Country {
     name: string;
@@ -218,8 +219,7 @@ export default function Home() {
     const [newTripDestination, setNewTripDestination] = useState("");
     const [creatingTrip, setCreatingTrip] = useState(false);
 
-    // Currency toggle state - true = trip currency, false = home currency
-    const [showTripCurrency, setShowTripCurrency] = useState(true);
+    const { convertAmount, displayCurrency, setBaseCurrency, setDisplayCurrency } = useCurrency();
 
     // Get home currency from user's home country
     const homeCurrency = React.useMemo(() => {
@@ -227,11 +227,6 @@ export default function Home() {
         const homeCountryData = locations.find(l => l.value === userProfile.homeCountry);
         return homeCountryData?.currency.currencyCode || "USD";
     }, [userProfile?.homeCountry]);
-
-    // Get the currently displayed currency
-    const displayedCurrency = showTripCurrency
-        ? (currentTrip?.currency || "USD")
-        : homeCurrency;
 
     useEffect(() => {
         if (userProfile) {
@@ -289,6 +284,14 @@ export default function Home() {
 
         setCurrentTrip(trips[0] ?? null);
     }, [trips, userProfile?.currentTripId]);
+
+    // Sync base currency with current trip currency
+    useEffect(() => {
+        if (currentTrip?.currency) {
+            setBaseCurrency(currentTrip.currency);
+            setDisplayCurrency(currentTrip.currency);
+        }
+    }, [currentTrip?.currency, setBaseCurrency, setDisplayCurrency]);
 
     useFocusEffect(
         useCallback(() => {
@@ -465,8 +468,10 @@ export default function Home() {
         (acc, item) => acc + (item.price || 0),
         0
     );
+    const totalSpentDisplay = convertAmount(totalSpent);
 
     const remainingBudget = (currentTrip?.budget ?? 0) - totalSpent;
+    const remainingBudgetDisplay = convertAmount(remainingBudget);
 
     const locationRef = useRef(null);
     const insets = useSafeAreaInsets();
@@ -874,23 +879,30 @@ export default function Home() {
                             variant="secondary"
                             className=" rounded border border-gray-300"
                             onPress={() => {
-                                setShowTripCurrency(!showTripCurrency);
-                                toast({
-                                    title: "Currency Changed",
-                                    description: !showTripCurrency
-                                        ? `Showing prices in ${currentTrip?.currency || 'USD'} (trip currency)`
-                                        : `Showing prices in ${homeCurrency} (home currency)`,
-                                    variant: "success",
+                                const target =
+                                    displayCurrency === (currentTrip?.currency || "USD")
+                                        ? homeCurrency
+                                        : (currentTrip?.currency || "USD");
+                                setDisplayCurrency(target).then(() => {
+                                    toast({
+                                        title: "Currency Changed",
+                                        description: `Showing prices in ${target}`,
+                                        variant: "success",
+                                    });
+                                }).catch((err) => {
+                                    console.error("Failed to change currency", err);
+                                    toast({
+                                        title: "Error",
+                                        description: "Unable to change currency.",
+                                        variant: "error",
+                                    });
                                 });
                             }}
                         >
                             <View className="flex-row items-center">
                                 <DollarSign size={16} color="white" />
                                 <Text className="ml-2 text-white">
-                                    {displayedCurrency}
-                                </Text>
-                                <Text className="ml-1 text-xs text-white/70">
-                                    {showTripCurrency ? "(trip)" : "(home)"}
+                                    {displayCurrency}
                                 </Text>
                             </View>
                         </Button>
