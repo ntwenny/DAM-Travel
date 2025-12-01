@@ -17,10 +17,13 @@ const CART_SUBCOLLECTION = "cart";
 type StoredTripSummary = {
     id?: string;
     name?: string;
-    destination?: string;
+    location?: string;
+    destination?: string; // deprecated, kept for backward compatibility
     startDate?: string;
     endDate?: string;
-    totalBudget?: number;
+    budget?: number;
+    totalBudget?: number; // deprecated, kept for backward compatibility
+    currency?: string;
     items?: unknown[];
 };
 
@@ -106,11 +109,11 @@ export async function createTripInternal(
       const minimal = {
         id: tripRef.id,
         name,
-        destination: location,
+        location: location,
         startDate: tripRecord.startDate.toISOString(),
         endDate: tripRecord.endDate.toISOString(),
         currency: tripCurrency,
-        totalBudget: budget,
+        budget: budget,
         items: [],
       };
       const existingTrips = Array.isArray(userData.trips) ?
@@ -760,9 +763,9 @@ export const setCurrentTrip = functions.https.onCall(async (request) => {
     const tripRecord: Trip = {
       id: tripId,
       name: minimal.name || "Trip",
-      location: minimal.destination || "",
-      currency: "",
-      budget: Number(minimal.totalBudget) || 0,
+      location: (minimal as any).location || (minimal as any).destination || "",
+      currency: (minimal as any).currency || "",
+      budget: Number((minimal as any).budget || (minimal as any).totalBudget) || 0,
       startDate: minimal.startDate ?
         new Date(minimal.startDate) :
         new Date(),
@@ -817,7 +820,70 @@ export const getTrips = onCall(async (request) => {
   }
 
   const data = userDoc.data();
-  return {trips: data?.trips ?? []};
+  const trips = data?.trips ?? [];
+
+  console.log("getTrips called, trips count:", trips.length);
+
+  // Migrate trips: fix missing or incorrect currency and update field names
+  let needsUpdate = false;
+  const migratedTrips = trips.map((trip: any) => {
+    const tripLocation = trip.location || trip.destination;
+    console.log(`Processing trip ${trip.name}: location=${tripLocation}, currency=${trip.currency}`);
+
+    // Currency mapping for all countries
+    const currencyMap: {[key: string]: string} = {
+      US: "USD", GB: "GBP", JP: "JPY", CN: "CNY", KR: "KRW",
+      FR: "EUR", DE: "EUR", IT: "EUR", ES: "EUR", NL: "EUR",
+      BE: "EUR", AT: "EUR", PT: "EUR", GR: "EUR", IE: "EUR",
+      FI: "EUR", LU: "EUR", SK: "EUR", SI: "EUR", EE: "EUR",
+      LV: "EUR", LT: "EUR", MT: "EUR", CY: "EUR",
+      CA: "CAD", AU: "AUD", IN: "INR", BR: "BRL", MX: "MXN",
+      CH: "CHF", NO: "NOK", SE: "SEK", DK: "DKK", PL: "PLN",
+      CZ: "CZK", HU: "HUF", RO: "RON", BG: "BGN", HR: "HRK",
+      RU: "RUB", TR: "TRY", ZA: "ZAR", NZ: "NZD", SG: "SGD",
+      HK: "HKD", TW: "TWD", TH: "THB", MY: "MYR", ID: "IDR",
+      PH: "PHP", VN: "VND", AE: "AED", SA: "SAR", IL: "ILS",
+      EG: "EGP", NG: "NGN", KE: "KES", AR: "ARS", CL: "CLP",
+      CO: "COP", PE: "PEN", IS: "ISK", UA: "UAH", RS: "RSD",
+    };
+
+    // Always recalculate currency from location to fix incorrect values
+    let tripCurrency = "USD";
+    if (tripLocation && currencyMap[tripLocation]) {
+      tripCurrency = currencyMap[tripLocation];
+      // Check if currency needs updating
+      if (trip.currency !== tripCurrency) {
+        console.log(`Currency mismatch for ${trip.name}: ${trip.currency} -> ${tripCurrency}`);
+        needsUpdate = true;
+      }
+    } else {
+      console.log(`No currency mapping found for location: ${tripLocation}`);
+    }
+
+    // Update to new field names if using old ones
+    if (trip.destination && !trip.location) needsUpdate = true;
+    if (trip.totalBudget !== undefined && trip.budget === undefined) {
+      needsUpdate = true;
+    }
+
+    return {
+      ...trip,
+      location: tripLocation || "",
+      budget: trip.budget ?? trip.totalBudget ?? 0,
+      currency: tripCurrency || "USD",
+    };
+  });
+
+  // Save the migrated trips back to Firestore if changes were made
+  if (needsUpdate) {
+    console.log("Updating trips in Firestore with migrated data");
+    await userRef.update({trips: migratedTrips});
+    console.log("Trips updated successfully");
+  } else {
+    console.log("No updates needed for trips");
+  }
+
+  return {trips: migratedTrips};
 });
 
 export const createReceipt = functions.https.onCall(async (request) => {

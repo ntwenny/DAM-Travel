@@ -84,4 +84,5 @@ export interface UserProperties {
 
     currentTripId?: string;
     trips: Trip[];
+    homeCountry?: string;
 }

@@ -145,6 +145,7 @@ export async function updateUserProfile(data: {
     displayName?: string;
     photoURL?: string;
     email?: string;
+    homeCountry?: string;
 }) {
     const callable = httpsCallable(functions, "updateUser");
     const res = await callable(data);
