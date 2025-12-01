@@ -5,6 +5,7 @@ import {
     Image,
     ScrollView,
     View,
+    Switch,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -26,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 
 export default function CartScreen() {
-    const { cartItems, updateQuantity, removeFromCart, clearCart, loading } =
+    const { cartItems, updateQuantity, removeFromCart, clearCart, updateHomeTax, loading } =
         useCart();
     const [selected, setSelected] = useState<Record<string, boolean>>({});
 
@@ -196,7 +197,7 @@ export default function CartScreen() {
                                                 >
                                                     <Icon as={MinusIcon} />
                                                 </Button>
-                                                <Text className="font-['JosefinSans-Regular'] w-8 text-center text-base font-semibold">
+                                            <Text className="font-['JosefinSans-Regular'] w-8 text-center text-base font-semibold">
                                                     {item.quantity || 1}
                                                 </Text>
                                                 <Button
@@ -214,6 +215,35 @@ export default function CartScreen() {
                                                     <Icon as={PlusIcon} />
                                                 </Button>
                                             </View>
+                                        </View>
+
+                                        {/* Home Tax Toggle */}
+                                        <View className="mt-3 flex-row items-center justify-end gap-3">
+                                            <Text className="text-sm text-muted-foreground">
+                                                Use Home Tax Rate
+                                            </Text>
+                                            <Switch
+                                                value={item.homeTax}
+                                                onValueChange={(value) => {
+                                                    const key = getItemKey(item);
+                                                    updateHomeTax(key, value).catch(
+                                                        (error) => {
+                                                            Alert.alert(
+                                                                "Error",
+                                                                error instanceof Error ?
+                                                                    error.message :
+                                                                    "Failed to update tax preference"
+                                                            );
+                                                        }
+                                                    );
+                                                }}
+                                                trackColor={{ false: "#767577", true: "#81b0ff" }}
+                                                thumbColor={
+                                                    item.homeTax ?
+                                                        "#f5dd4b" :
+                                                        "#4a474aff"
+                                                }
+                                            />
                                         </View>
 
                                         <View className="mt-4 flex-row justify-end gap-4">

@@ -1,9 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { ArrowLeftIcon, ShoppingBagIcon } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCart } from '@/context/cart-context';
-import type { CartItem } from '@/types/user';
+import type { CartItem, Receipt } from '@/types/user';
+import { useUser } from '@/hooks/useUser';
+import { createReceiptForTrip } from '@/lib/firebase';
+
 // No backend calls here; compute a simple local tax.
 
 
@@ -96,6 +99,7 @@ const BreakdownRow = ({ label, amountLocal, type }: { label: string; amountLocal
 
 // --- Main Mock Receipt Screen Component ---
 export default function MockReceiptScreen() {
+  const { userProfile } = useUser();
   const { cartItems } = useCart();
   const params = useLocalSearchParams<{ ids?: string }>();
   const selectedIds = useMemo(() => {
@@ -115,19 +119,34 @@ export default function MockReceiptScreen() {
       quantity: Number(ci.quantity ?? 1) || 1,
       price: Number(ci.price ?? 0) || 0,
       currency: ci.currency,
+      homeTax: ci.homeTax ?? false,
     }));
   }, [cartItems, selectedIds]);
 
   const store = 'Cart Summary';
   const date = new Date().toLocaleString();
-  const currencyLocal = items.find((i) => !!i.currency)?.currency || 'USD';
-  const subtotal = items.reduce((sum, i) => sum + (i.price || 0) * (i.quantity || 0), 0);
-  const TAX_RATE = 0.03; // 3%
-  const tax = subtotal * TAX_RATE;
-  const totalLocal = subtotal + tax;
-  const breakdown: Array<{ label: string; amountLocal: number; type: 'fee' | 'refund' }> = [];
-  const currencyHome = currencyLocal;
-  const exchangeRate = 1;
+
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
+  useEffect(() => {
+    async function fetchReceipt() {
+      if (!userProfile?.currentTripId) return;
+      const rec = await createReceiptForTrip(userProfile.currentTripId, items);
+      setReceipt(rec);
+    }
+    fetchReceipt();
+  }, [userProfile?.currentTripId, items]);
+  
+  const currencyLocal = receipt?.currency || 'USD';
+  const subtotal = receipt?.subtotal || 0;
+  const tax = receipt?.tax || 0;
+  const totalLocal = receipt?.total || 0;
+  const serviceFee = receipt?.serviceFee || 0;
+  const breakdown = serviceFee > 0 ? [
+    { label: 'Service Fee', amountLocal: serviceFee, type: 'fee' as const }
+  ] : [];
+  const taxRate = receipt?.taxRate || 0;
+  const currencyHome = 'USD'; // Assume home currency is USD for this mockup
+  const exchangeRate = 1.0; // Assume 1:1 for simplicity
   const totalHome = totalLocal * exchangeRate;
 
 
@@ -231,7 +250,7 @@ export default function MockReceiptScreen() {
                 </Text>
               </View>
               <View className="flex-row justify-between items-center mb-1">
-                <Text className="text-[18px] font-bold text-black">Tax (3%)</Text>
+                <Text className="text-[18px] font-bold text-black">Tax ({(taxRate * 100).toFixed(1)}%)</Text>
                 <Text className="text-[18px] font-bold text-black">
                   {formatAmount(tax, currencyLocal)}
                 </Text>

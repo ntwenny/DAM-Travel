@@ -17,7 +17,7 @@ import {
 } from "firebase/auth";
 import { getStorage, connectStorageEmulator } from "firebase/storage";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
-import type { CartItem } from "@/types/user";
+import type { CartItem, Receipt } from "@/types/user";
 
 /**
  * Minimal firebase initialization for the client.
@@ -115,7 +115,7 @@ export async function getTrips() {
 }
 
 export async function createTrip(
-    params: { name?: string; location?: string } = {}
+    params: { name?: string; location?: string; currency?: string } = {}
 ) {
     const callable = httpsCallable(functions, "createTrip");
     const res = await callable(params);
@@ -187,6 +187,19 @@ export async function updateCartQuantity(
     return res.data as CartItem;
 }
 
+export async function updateCartItemHomeTax(
+  tripId: string,
+  tripItemId: string,
+  homeTax: boolean
+): Promise<void> {
+  const callable = httpsCallable(functions, "updateCartItemHomeTax");
+  await callable({
+    tripId,
+    tripItemId,
+    homeTax,
+  });
+}
+
 export async function getCart(tripId: string) {
     const callable = httpsCallable(functions, "getCartItems");
     const res = await callable({ tripId });
@@ -203,15 +216,7 @@ export async function clearCartItems(tripId: string) {
 export async function createReceiptForTrip(
     tripId: string,
     items: Array<Record<string, unknown>>
-): Promise<{
-    items: any[];
-    subtotal: number;
-    tax: number;
-    serviceFee: number;
-    total: number;
-    currency?: string;
-    country?: string;
-}> {
+): Promise<Receipt> {
     const callable = httpsCallable(functions, "createReceipt");
     const res = await callable({ tripId, items });
     return res.data as any;

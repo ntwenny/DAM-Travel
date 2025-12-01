@@ -13,6 +13,7 @@ import {
     getCart,
     removeCartItemFromTrip,
     updateCartQuantity,
+    updateCartItemHomeTax,
 } from "@/lib/firebase";
 import { useUser } from "@/hooks/useUser";
 
@@ -28,6 +29,7 @@ type CartContextValue = {
     removeFromCart: (tripItemId: string) => Promise<void>;
     clearCart: () => Promise<void>;
     updateQuantity: (tripItemId: string, quantity: number) => Promise<void>;
+    updateHomeTax: (tripItemId: string, homeTax: boolean) => Promise<void>;
 };
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
@@ -137,6 +139,31 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         [activeTripId, removeFromCart]
     );
 
+    const updateHomeTax = useCallback(
+      async (tripItemId: string, homeTax: boolean) => {
+          if (!activeTripId) {
+              throw new Error("No active trip to update.");
+          }
+          await updateCartItemHomeTax(
+              activeTripId,
+              tripItemId,
+              homeTax
+          );
+          setCartItems((prev) => {
+              const idx = prev.findIndex(
+                  (entry) => entry.tripItemId === tripItemId
+              );
+              if (idx === -1) {
+                  return prev;
+              }
+              const next = [...prev];
+              next[idx] = { ...next[idx], homeTax };
+              return next;
+          });
+      },
+      [activeTripId]
+  );
+
     const value = useMemo(
         () => ({
             cartItems,
@@ -146,6 +173,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             removeFromCart,
             clearCart,
             updateQuantity,
+            updateHomeTax,
         }),
         [
             cartItems,
@@ -155,6 +183,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             removeFromCart,
             clearCart,
             updateQuantity,
+            updateHomeTax,
         ]
     );
 

@@ -223,7 +223,11 @@ export default function TripSelectionScreen() {
         setCreatingTrip(true);
         setTripsError(null);
         try {
-            await createTrip({ name: trimmedName });
+            await createTrip({ 
+                name: trimmedName,
+                location: "US", // change to not be hardcoded
+                currency: "USD", // change to not be hardcoded
+            });
             setCreateVisible(false);
             setNewTripName("");
             await loadTrips();

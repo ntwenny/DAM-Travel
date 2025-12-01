@@ -33,6 +33,7 @@ export const onUserCreate = auth.user().onCreate(async (user) => {
     displayName: user.displayName || "",
     photoURL: user.photoURL || "",
     trips: [],
+    homeCountry: "US", // Default home country
   };
 
   try {
@@ -44,8 +45,8 @@ export const onUserCreate = auth.user().onCreate(async (user) => {
       const now = new Date();
       await createTripInternal(user.uid, {
         name: "My First Trip",
-        location: "",
-        currency: "",
+        location: "KR", // change to not be hardcoded
+        currency: "USD", // change to not be hardcoded
         budget: 0,
         startDate: now,
         endDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),

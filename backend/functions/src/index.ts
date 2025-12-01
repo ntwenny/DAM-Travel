@@ -30,6 +30,7 @@ import {
   getCartItems,
   clearCart,
   updateCartItemQuantity,
+  updateCartItemHomeTax,
 } from "./trip";
 import {
   getFinance,
@@ -69,4 +70,5 @@ export {
   addTransaction,
   deleteTransaction,
   editTransaction,
+  updateCartItemHomeTax,
 };
