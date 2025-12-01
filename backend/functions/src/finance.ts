@@ -9,19 +9,23 @@ const DEFAULT_FINANCE: FinanceState = {
   categories: [],
 };
 
-// Helper to get or create a finance state for the user
-async function getFinanceDocRef(uid: string) {
-  const userRef = db.collection("users").doc(uid);
-  return userRef;
+// Helper to get the trip document reference for finance data
+async function getFinanceDocRef(uid: string, tripId: string) {
+  const tripRef = db.collection("users").doc(uid).collection("trips").doc(tripId);
+  return tripRef;
 }
 
 export const getFinance = functions.https.onCall(async (request) => {
   const uid = request.data?.userId || request.auth?.uid;
+  const tripId = request.data?.tripId;
   if (!uid) {
     throw new functions.https.HttpsError("unauthenticated", "User ID required");
   }
-  const userRef = await getFinanceDocRef(uid);
-  const snap = await userRef.get();
+  if (!tripId) {
+    throw new functions.https.HttpsError("invalid-argument", "Trip ID required");
+  }
+  const tripRef = await getFinanceDocRef(uid, tripId);
+  const snap = await tripRef.get();
   const data = snap.data() || {};
   const finance: FinanceState = data.finance || DEFAULT_FINANCE;
   return finance;
@@ -29,7 +33,9 @@ export const getFinance = functions.https.onCall(async (request) => {
 
 export const updateBudget = functions.https.onCall(async (request) => {
   const uid = request.data?.userId || request.auth?.uid;
+  const tripId = request.data?.tripId;
   if (!uid) throw new functions.https.HttpsError("unauthenticated", "User ID required");
+  if (!tripId) throw new functions.https.HttpsError("invalid-argument", "Trip ID required");
   const budget = Number(request.data?.budget ?? NaN);
   if (Number.isNaN(budget) || budget < 0) {
     throw new functions.https.HttpsError(
@@ -38,23 +44,25 @@ export const updateBudget = functions.https.onCall(async (request) => {
     );
   }
 
-  const userRef = await getFinanceDocRef(uid);
+  const tripRef = await getFinanceDocRef(uid, tripId);
   await db.runTransaction(async (tx) => {
-    const snap = await tx.get(userRef);
+    const snap = await tx.get(tripRef);
     const data = snap.data() || {};
     const finance: FinanceState = data.finance || {
       budget: 0,
       categories: [],
     };
     finance.budget = budget;
-    tx.update(userRef, {finance});
+    tx.update(tripRef, {finance});
   });
   return {budget};
 });
 
 export const addCategory = functions.https.onCall(async (request) => {
   const uid = request.data?.userId || request.auth?.uid;
+  const tripId = request.data?.tripId;
   if (!uid) throw new functions.https.HttpsError("unauthenticated", "User ID required");
+  if (!tripId) throw new functions.https.HttpsError("invalid-argument", "Trip ID required");
   const name = (request.data?.name || "").trim();
   if (!name) {
     throw new functions.https.HttpsError("invalid-argument", "Category name required");
@@ -63,16 +71,16 @@ export const addCategory = functions.https.onCall(async (request) => {
   const id = Date.now().toString();
   const newCategory: Category = {id, name, items: []};
 
-  const userRef = await getFinanceDocRef(uid);
+  const tripRef = await getFinanceDocRef(uid, tripId);
   await db.runTransaction(async (tx) => {
-    const snap = await tx.get(userRef);
+    const snap = await tx.get(tripRef);
     const data = snap.data() || {};
     const finance: FinanceState = data.finance || {
       budget: 0,
       categories: [],
     };
     finance.categories = [newCategory, ...finance.categories];
-    tx.update(userRef, {finance});
+    tx.update(tripRef, {finance});
   });
 
   return newCategory;
@@ -80,20 +88,22 @@ export const addCategory = functions.https.onCall(async (request) => {
 
 export const deleteCategory = functions.https.onCall(async (request) => {
   const uid = request.data?.userId || request.auth?.uid;
+  const tripId = request.data?.tripId;
   if (!uid) throw new functions.https.HttpsError("unauthenticated", "User ID required");
+  if (!tripId) throw new functions.https.HttpsError("invalid-argument", "Trip ID required");
   const id = String(request.data?.id || "");
   if (!id) throw new functions.https.HttpsError("invalid-argument", "Category id required");
 
-  const userRef = await getFinanceDocRef(uid);
+  const tripRef = await getFinanceDocRef(uid, tripId);
   await db.runTransaction(async (tx) => {
-    const snap = await tx.get(userRef);
+    const snap = await tx.get(tripRef);
     const data = snap.data() || {};
     const finance: FinanceState = data.finance || {
       budget: 0,
       categories: [],
     };
     finance.categories = finance.categories.filter((c) => c.id !== id);
-    tx.update(userRef, {finance});
+    tx.update(tripRef, {finance});
   });
 
   return {id};
@@ -101,7 +111,9 @@ export const deleteCategory = functions.https.onCall(async (request) => {
 
 export const addTransaction = functions.https.onCall(async (request) => {
   const uid = request.data?.userId || request.auth?.uid;
+  const tripId = request.data?.tripId;
   if (!uid) throw new functions.https.HttpsError("unauthenticated", "User ID required");
+  if (!tripId) throw new functions.https.HttpsError("invalid-argument", "Trip ID required");
   const {categoryId, name} = request.data || {};
   const amount = Number(request.data?.amount ?? NaN);
   if (!categoryId) {
@@ -121,9 +133,9 @@ export const addTransaction = functions.https.onCall(async (request) => {
     timestamp: Date.now(),
   };
 
-  const userRef = await getFinanceDocRef(uid);
+  const tripRef = await getFinanceDocRef(uid, tripId);
   await db.runTransaction(async (tx) => {
-    const snap = await tx.get(userRef);
+    const snap = await tx.get(tripRef);
     const data = snap.data() || {};
     const finance: FinanceState = data.finance || {
       budget: 0,
@@ -132,7 +144,7 @@ export const addTransaction = functions.https.onCall(async (request) => {
     const cat = finance.categories.find((c) => c.id === categoryId);
     if (!cat) throw new functions.https.HttpsError("not-found", "Category not found");
     cat.items = [item, ...cat.items];
-    tx.update(userRef, {finance});
+    tx.update(tripRef, {finance});
   });
 
   return item;
@@ -140,7 +152,9 @@ export const addTransaction = functions.https.onCall(async (request) => {
 
 export const deleteTransaction = functions.https.onCall(async (request) => {
   const uid = request.data?.userId || request.auth?.uid;
+  const tripId = request.data?.tripId;
   if (!uid) throw new functions.https.HttpsError("unauthenticated", "User ID required");
+  if (!tripId) throw new functions.https.HttpsError("invalid-argument", "Trip ID required");
   const {categoryId, itemId} = request.data || {};
   if (!categoryId || !itemId) {
     throw new functions.https.HttpsError(
@@ -149,9 +163,9 @@ export const deleteTransaction = functions.https.onCall(async (request) => {
     );
   }
 
-  const userRef = await getFinanceDocRef(uid);
+  const tripRef = await getFinanceDocRef(uid, tripId);
   await db.runTransaction(async (tx) => {
-    const snap = await tx.get(userRef);
+    const snap = await tx.get(tripRef);
     const data = snap.data() || {};
     const finance: FinanceState = data.finance || {
       budget: 0,
@@ -160,7 +174,7 @@ export const deleteTransaction = functions.https.onCall(async (request) => {
     const cat = finance.categories.find((c) => c.id === categoryId);
     if (!cat) throw new functions.https.HttpsError("not-found", "Category not found");
     cat.items = cat.items.filter((it) => it.id !== itemId);
-    tx.update(userRef, {finance});
+    tx.update(tripRef, {finance});
   });
 
   return {categoryId, itemId};
@@ -168,7 +182,9 @@ export const deleteTransaction = functions.https.onCall(async (request) => {
 
 export const editTransaction = functions.https.onCall(async (request) => {
   const uid = request.data?.userId || request.auth?.uid;
+  const tripId = request.data?.tripId;
   if (!uid) throw new functions.https.HttpsError("unauthenticated", "User ID required");
+  if (!tripId) throw new functions.https.HttpsError("invalid-argument", "Trip ID required");
   const {categoryId, item} = request.data || {};
   if (!categoryId || !item || !item.id) {
     throw new functions.https.HttpsError(
@@ -177,9 +193,9 @@ export const editTransaction = functions.https.onCall(async (request) => {
     );
   }
 
-  const userRef = await getFinanceDocRef(uid);
+  const tripRef = await getFinanceDocRef(uid, tripId);
   await db.runTransaction(async (tx) => {
-    const snap = await tx.get(userRef);
+    const snap = await tx.get(tripRef);
     const data = snap.data() || {};
     const finance: FinanceState = data.finance || {
       budget: 0,
@@ -190,7 +206,7 @@ export const editTransaction = functions.https.onCall(async (request) => {
     cat.items = cat.items.map((it) =>
       it.id === item.id ? {...it, ...item} : it
     );
-    tx.update(userRef, {finance});
+    tx.update(tripRef, {finance});
   });
 
   return item;

@@ -15,6 +15,7 @@ import {
     auth,
     observeAuthState
 } from '@/lib/firebase';
+import { useUser } from '@/hooks/useUser';
 
 type Item = { id: string; name: string; amount: number; timestamp?: number };
 type Category = { id: string; name: string; items: Item[] };
@@ -87,7 +88,8 @@ export default function FinanceScreen() {
 
     // Loading and auth state
     const [loading, setLoading] = useState(true);
-    const [user, setUser] = useState(auth.currentUser);
+    const { user, userProfile } = useUser();
+    const currentTripId = userProfile?.currentTripId;
 
     // Calculate total spent
     const totalSpent = useMemo(() => {
@@ -109,17 +111,9 @@ export default function FinanceScreen() {
     // Search state for filtering categories
     const [searchQuery, setSearchQuery] = useState("");
 
-    // Observe auth state changes
+    // Load finance data when user is authenticated and has a current trip
     useEffect(() => {
-        const unsubscribe = observeAuthState((currentUser) => {
-            setUser(currentUser);
-        });
-        return unsubscribe;
-    }, []);
-
-    // Load finance data when user is authenticated
-    useEffect(() => {
-        if (!user) {
+        if (!user || !currentTripId) {
             setLoading(false);
             return;
         }
@@ -128,8 +122,8 @@ export default function FinanceScreen() {
             try {
                 setLoading(true);
 
-                console.log('Loading finance data for user:', user.uid);
-                const financeData = await getFinance();
+                console.log('Loading finance data for trip:', currentTripId);
+                const financeData = await getFinance(currentTripId);
                 console.log('Finance data loaded:', financeData);
 
                 setBudget(financeData.budget || 0);
@@ -148,7 +142,7 @@ export default function FinanceScreen() {
         }
 
         loadFinance();
-    }, [user]);
+    }, [user, currentTripId]);
 
     // Category menu + edit modal state
     const [menuOpenFor, setMenuOpenFor] = useState<string | null>(null);
@@ -189,6 +183,11 @@ export default function FinanceScreen() {
 
     // Save new transaction
     async function saveTransaction() {
+        if (!currentTripId) {
+            Alert.alert("No trip selected", "Please select a trip first.");
+            return;
+        }
+
         // Validate amount
         const amount = parseFloat(txAmount) || 0;
         if (!amount || amount <= 0) {
@@ -201,7 +200,7 @@ export default function FinanceScreen() {
 
             // If user provided a new category name, create it
             if (newCategoryName.trim() !== "") {
-                const newCat = await addCategoryBackend(newCategoryName.trim());
+                const newCat = await addCategoryBackend(currentTripId, newCategoryName.trim());
                 setCategories((prev) => [newCat, ...prev]);
                 targetCatId = newCat.id;
             }
@@ -214,7 +213,7 @@ export default function FinanceScreen() {
 
             // Create new item via backend
             const itemName = txDesc.trim() || "Transaction";
-            const newItem = await addTransactionBackend(targetCatId, itemName, amount);
+            const newItem = await addTransactionBackend(currentTripId, targetCatId, itemName, amount);
 
             // Add item to the selected category in local state
             setCategories((prev) => prev.map((c) => c.id === targetCatId ? { ...c, items: [newItem, ...c.items] } : c));
@@ -227,8 +226,13 @@ export default function FinanceScreen() {
 
     // Delete handlers
     async function deleteCategory(catId: string) {
+        if (!currentTripId) {
+            Alert.alert("No trip selected", "Please select a trip first.");
+            return;
+        }
+
         try {
-            await deleteCategoryBackend(catId);
+            await deleteCategoryBackend(currentTripId, catId);
             setCategories((prev) => prev.filter((c) => c.id !== catId));
         } catch (err) {
             console.error('Failed to delete category:', err);
@@ -246,8 +250,13 @@ export default function FinanceScreen() {
 
     //  Delete item
     async function deleteItem(catId: string, itemId: string) {
+        if (!currentTripId) {
+            Alert.alert("No trip selected", "Please select a trip first.");
+            return;
+        }
+
         try {
-            await deleteTransactionBackend(catId, itemId);
+            await deleteTransactionBackend(currentTripId, catId, itemId);
             setCategories((prev) => prev.map((c) => {
                 if (c.id !== catId) return c;
                 return { ...c, items: c.items.filter((it) => it.id !== itemId) };
@@ -282,11 +291,19 @@ export default function FinanceScreen() {
         );
     }
 
-    // Show message if user is not authenticated
+    // Show message if user is not authenticated or no trip selected
     if (!user) {
         return (
             <SafeAreaView className="flex-1 bg-background items-center justify-center">
                 <Text className="text-gray-500">Please sign in to view finance data</Text>
+            </SafeAreaView>
+        );
+    }
+
+    if (!currentTripId) {
+        return (
+            <SafeAreaView className="flex-1 bg-background items-center justify-center">
+                <Text className="text-gray-500">Please select a trip to view finance data</Text>
             </SafeAreaView>
         );
     }
@@ -457,9 +474,14 @@ export default function FinanceScreen() {
                                         <Text className="text-black">Cancel</Text>
                                     </Pressable>
                                     <Pressable onPress={async () => {
+                                        if (!currentTripId) {
+                                            Alert.alert("No trip selected", "Please select a trip first.");
+                                            return;
+                                        }
+
                                         try {
                                             const newBudget = Number(budgetEditValue) || 0;
-                                            await updateBudgetBackend(newBudget);
+                                            await updateBudgetBackend(currentTripId, newBudget);
                                             setBudget(newBudget);
                                             setBudgetEditModalVisible(false);
                                         } catch (err) {
@@ -551,11 +573,15 @@ export default function FinanceScreen() {
                                 </Pressable>
                                 <Pressable onPress={async () => {
                                     if (!editingCategoryId) return setEditModalVisible(false);
+                                    if (!currentTripId) {
+                                        Alert.alert("No trip selected", "Please select a trip first.");
+                                        return;
+                                    }
 
                                     try {
                                         // Update each item in the backend
                                         for (const item of editItems) {
-                                            await editTransactionBackend(editingCategoryId, item);
+                                            await editTransactionBackend(currentTripId, editingCategoryId, item);
                                         }
 
                                         // Update local state
