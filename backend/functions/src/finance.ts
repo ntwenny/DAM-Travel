@@ -211,3 +211,30 @@ export const editTransaction = functions.https.onCall(async (request) => {
 
   return item;
 });
+
+
+export const convertCurrency = functions.https.onCall(async (request) => {
+  const { amount, from, to } = request.data;
+
+  if (!amount || !from || !to) {
+    throw new functions.https.HttpsError("invalid-argument", "Missing fields.");
+  }
+
+  const apiKey = process.env.EXCHANGERATE_API_KEY;
+
+  const url = `https://v6.exchangerate-api.com/v6/${apiKey}/latest/${from}`;
+
+  const response = await fetch(url);
+  const body = await response.json();
+
+  const rate = body.conversion_rates[to];
+  const converted = amount * rate;
+
+  return {
+    from,
+    to,
+    rate,
+    originalAmount: amount,
+    convertedAmount: converted,
+  };
+});

@@ -285,6 +285,12 @@ export async function setCurrentTrip(tripId: string) {
     return res.data as { currentTripId: string };
 }
 
+export async function convertCurrency(from: string, to: string) {
+  const callable = httpsCallable(functions, "convertCurrency");
+  const result = await callable({ from, to });
+  return result.data as { rate: number; from: string; to: string; timestamp: number };
+}
+
 export default {
     auth,
     observeAuthState,
