@@ -6,21 +6,24 @@ import { NAV_THEME } from "@/theme";
 import { colorScheme } from "nativewind";
 import { CartProvider } from "@/context/cart-context";
 import { ToastProvider } from "@/hooks/useToast";
+import { CurrencyProvider } from "@/context/currency-context";
 export default function RootLayout() {
     colorScheme.set("dark");
 
     return (
-        <CartProvider>
-            <ToastProvider>
-                <ThemeProvider value={NAV_THEME.dark}>
-                    <Stack screenOptions={{ headerShown: false }}>
-                        <Stack.Screen name="trip-selection" />
-                        <Stack.Screen name="(tabs)" />
-                        <Stack.Screen name="similar-products" />
-                    </Stack>
-                    <PortalHost />
-                </ThemeProvider>
-            </ToastProvider>
-        </CartProvider>
+        <CurrencyProvider baseCurrency={"USD"}>
+            <CartProvider>
+                <ToastProvider>
+                    <ThemeProvider value={NAV_THEME.dark}>
+                        <Stack screenOptions={{ headerShown: false }}>
+                            <Stack.Screen name="trip-selection" />
+                            <Stack.Screen name="(tabs)" />
+                            <Stack.Screen name="similar-products" />
+                        </Stack>
+                        <PortalHost />
+                    </ThemeProvider>
+                </ToastProvider>
+            </CartProvider>
+        </CurrencyProvider>
     );
 }
