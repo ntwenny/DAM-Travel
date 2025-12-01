@@ -12,14 +12,15 @@ import { Text } from "@/components/ui/text";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
-    Cloud,
+    Map,
     DollarSign,
     DollarSignIcon,
-    KeyIcon,
+    LogOut,
     List,
     ShoppingBagIcon,
     StarIcon,
     WrenchIcon,
+    Search
 } from "lucide-react-native";
 import {
     SafeAreaView,
@@ -113,8 +114,8 @@ function TripItemCarousel({
 }) {
     return (
         <View className="mb-4">
-            <Text className="text-2xl font-[JosefinSans-Bold] mb-2">
-                Trip Items
+            <Text className="text-2xl font-[JosefinSans-Bold]">
+                Recent Trip Items
             </Text>
             <ScrollView
                 horizontal
@@ -466,20 +467,11 @@ export default function Home() {
         );
     }
 
-    function Stars() {
-        return (
-            <>
-                {starPositions.map((s, i) => (
-                    <AnimatedStar key={`star-${i}`} star={s} />
-                ))}
-            </>
-        );
-    }
+ 
 
     return (
         <SafeAreaView className="flex-1 bg-background">
-            <Stars />
-
+ 
             {/* Prompt modal for missing display name */}
             <Modal visible={showNameDialog} transparent animationType="fade">
                 <View className="flex-1 justify-center items-center bg-black/50">
@@ -552,13 +544,34 @@ export default function Home() {
                     />
                 }
             >
+
                 {/* Full-width header band (edge-to-edge) as logo background */}
                 <ImageBackground
-                    source={require("../../assets/images/japan.jpeg")}
+                    source={require("../../assets/images/japan.png")}
                     className="w-full pt-20"
+
                 >
+
                     <View className="px-6 pb-4">
-                        <View className="mb-1">
+                        {/* top-right menu (three vertical dots) */}
+                        <View
+                            style={{
+                                position: "absolute",
+                                top: -45,
+                                right: 5,
+                                zIndex: 20,
+                            }}
+                        >
+                            <Button
+                                onPress={handleSignOut}
+                                variant="ghost"
+                                className="rounded-full bg-black/40 "
+                            >
+                                <LogOut color="white" size="16" />
+                            </Button>
+                        </View>
+
+                        {/* <View className="mb-1">
                             <Image
                                 source={require("../../components/logo/skypocketlogo.png")}
                                 style={{
@@ -567,27 +580,28 @@ export default function Home() {
                                     resizeMode: "contain",
                                 }}
                             />
-                        </View>
-                        <View className="flex-row justify-between items-start mb-2">
+                        </View> */}
+                        <View className="flex-col justify-between items-start mb-2">
                             <Text className="text-4xl font-[JosefinSans-Bold] text-white">
-                                Hi, {user?.displayName || "there"}
+                                你好,
+                            </Text>
+                            <Text className="text-4xl font-[JosefinSans-Bold] text-white">
+                                {user?.displayName || "traveler"}
                             </Text>
 
-                            <Button
-                                onPress={handleSignOut}
-                                variant="destructive"
-                                className="rounded-full bg-primary"
-                            >
-                                <KeyIcon className="mr-2 " color="white" />
-                                <Text className=" text-sm font-[JosefinSans-Bold]">
-                                    Sign Out
-                                </Text>
-                            </Button>
                         </View>
 
-                        <View>
+
+
+                    </View>
+                </ImageBackground>
+
+                <View className="m-6 flex-1">
+                    <View className="flex-row items-center gap-3 mb-4">
+                        <View className="flex-1">
                             <Select>
-                                <SelectTrigger className="w-full bg-white border border-white/30">
+                                <SelectTrigger className="w-full bg-white rounded border-white border-5">
+                                    <Search className="size-8"></Search>
                                     <SelectValue
                                         className="text-black"
                                         placeholder="Select a location"
@@ -598,7 +612,7 @@ export default function Home() {
                                     insets={contentInsets}
                                 >
                                     <NativeSelectScrollView>
-                                        <SelectGroup>
+                                        <SelectGroup className="bg-white">
                                             {locations.map((location) => (
                                                 <SelectItem
                                                     key={location.value}
@@ -616,10 +630,113 @@ export default function Home() {
                                 </SelectContent>
                             </Select>
                         </View>
-                    </View>
-                </ImageBackground>
 
-                <View className="m-6 flex-1">
+                        <Button
+                            variant="secondary"
+                            className=" rounded border border-gray-300"
+                        >
+                            <View className="flex-row items-center">
+                                <DollarSign size={16} color="white" />
+                                <Text className="ml-2 text-white">USD</Text>
+                            </View>
+                        </Button>
+                    </View>
+
+                    <Text className="text-2xl font-[JosefinSans-Bold] mb-3">
+                        My trips
+                    </Text>
+
+                    {/* Trip selector: choose which trip to view locally (dropdown) */}
+                    <View className="mb-4">
+                        <Select
+                            value={
+                                currentTrip
+                                    ? {
+                                        label: currentTrip.name,
+                                        value: currentTrip.id,
+                                    }
+                                    : undefined
+                            }
+                            onValueChange={async (val) => {
+                                // `val` may be a raw string (id) or an Option object
+                                // (some Select usages provide the full option object).
+                                // Normalize to a string tripId before calling backend.
+                                const anyVal: any = val;
+                                const tripId: string | undefined =
+                                    typeof anyVal === "string"
+                                        ? anyVal
+                                        : (anyVal?.value ?? undefined);
+
+                                const picked = tripId
+                                    ? (trips.find((x) => x.id === tripId) ??
+                                        null)
+                                    : null;
+                                const prev = currentTrip;
+                                // optimistic local update
+                                setCurrentTrip(picked);
+
+                                if (!tripId) return;
+
+                                try {
+                                    setSavingTrip(true);
+                                    await remoteSetCurrentTrip(tripId);
+                                    toast({
+                                        title: "Saved",
+                                        description: "Active trip updated.",
+                                        variant: "success",
+                                    });
+                                } catch (err) {
+                                    console.error(
+                                        "Failed to set current trip",
+                                        err
+                                    );
+                                    toast({
+                                        title: "Error",
+                                        description:
+                                            "Unable to save active trip. Reverting.",
+                                        variant: "error",
+                                    });
+                                    // revert local state
+                                    setCurrentTrip(prev);
+                                } finally {
+                                    setSavingTrip(false);
+                                }
+                            }}
+                        >
+                            <SelectTrigger className="w-full bg-white p-2 r2unded bo-fullrder border-border mb-2">
+                                <SelectValue
+                                    className={
+                                        currentTrip
+                                            ? "text-black"
+                                            : "text-muted-foreground"
+                                    }
+                                    placeholder="Choose a trip"
+                                />
+                            </SelectTrigger>
+                            <SelectContent insets={contentInsets}>
+                                <NativeSelectScrollView>
+                                    <SelectGroup className="bg-white">
+                                        {trips.map((t) => (
+                                            <SelectItem
+                                                key={t.id}
+                                                value={t.id}
+                                                label={t.name}
+                                            />
+
+                                        ))}
+                                    </SelectGroup>
+                                </NativeSelectScrollView>
+                            </SelectContent>
+                        </Select>
+
+                        {savingTrip && (
+                            <View className="mt-2">
+                                <ActivityIndicator size="small" color="#000" />
+                            </View>
+                        )}
+                    </View>
+
+
                     {currentTrip && (
                         <TripItemCarousel
                             items={tripItems}
@@ -638,8 +755,7 @@ export default function Home() {
                                 } else {
                                     toast({
                                         title: "Info",
-                                        description:
-                                            "No product page available.",
+                                        description: "No product page available.",
                                         variant: "info",
                                     });
                                 }
@@ -676,9 +792,9 @@ export default function Home() {
                         />
                     )}
 
-                    <Card className="mb-4 bg-primary/30 border border-border">
+                    <Card className="mb-4 bg-secondary/30 border border-border">
                         <CardHeader>
-                            <CardTitle>Budget</CardTitle>
+                            <CardTitle>Current Budget</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <View className="flex-row justify-between items-center">
@@ -688,107 +804,20 @@ export default function Home() {
                                         ${(currentTrip?.budget ?? 0).toFixed(2)}
                                     </Text>
                                 </View>
-                                <BudgetDialog
-                                    initialValue={currentTrip?.budget ?? 0}
-                                    onSave={handleUpdateBudget}
-                                />
+                                <Button
+                                    variant="ghost"
+                                    onPress={() => {
+                                        router.push({
+                                            pathname: "/finance",
+                                            params: { budget: currentTrip?.budget ?? 0 }
+                                        });
+                                    }}
+                                >
+                                    <Text>Edit Budget</Text>
+                                </Button>
                             </View>
-                            <Text className="text-sm text-muted-foreground mt-2">
-                                Remaining: ${remainingBudget.toFixed(2)}
-                            </Text>
                         </CardContent>
                     </Card>
-                    {/* Trip selector: choose which trip to view locally (dropdown) */}
-                    <View className="mt-4">
-                        <Text className="text-sm text-muted-foreground mb-2">
-                            Select trip
-                        </Text>
-                        <Select
-                            value={
-                                currentTrip
-                                    ? {
-                                          label: currentTrip.name,
-                                          value: currentTrip.id,
-                                      }
-                                    : undefined
-                            }
-                            onValueChange={async (val) => {
-                                // `val` may be a raw string (id) or an Option object
-                                // (some Select usages provide the full option object).
-                                // Normalize to a string tripId before calling backend.
-                                const anyVal: any = val;
-                                const tripId: string | undefined =
-                                    typeof anyVal === "string"
-                                        ? anyVal
-                                        : (anyVal?.value ?? undefined);
-
-                                const picked = tripId
-                                    ? (trips.find((x) => x.id === tripId) ??
-                                      null)
-                                    : null;
-                                const prev = currentTrip;
-                                // optimistic local update
-                                setCurrentTrip(picked);
-
-                                if (!tripId) return;
-
-                                try {
-                                    setSavingTrip(true);
-                                    await remoteSetCurrentTrip(tripId);
-                                    toast({
-                                        title: "Saved",
-                                        description: "Active trip updated.",
-                                        variant: "success",
-                                    });
-                                } catch (err) {
-                                    console.error(
-                                        "Failed to set current trip",
-                                        err
-                                    );
-                                    toast({
-                                        title: "Error",
-                                        description:
-                                            "Unable to save active trip. Reverting.",
-                                        variant: "error",
-                                    });
-                                    // revert local state
-                                    setCurrentTrip(prev);
-                                } finally {
-                                    setSavingTrip(false);
-                                }
-                            }}
-                        >
-                            <SelectTrigger className="w-full bg-white p-2 rounded border border-border mb-2">
-                                <SelectValue
-                                    className={
-                                        currentTrip
-                                            ? "text-black"
-                                            : "text-muted-foreground"
-                                    }
-                                    placeholder="Choose a trip"
-                                />
-                            </SelectTrigger>
-                            <SelectContent insets={contentInsets}>
-                                <NativeSelectScrollView>
-                                    <SelectGroup>
-                                        {trips.map((t) => (
-                                            <SelectItem
-                                                key={t.id}
-                                                value={t.id}
-                                                label={t.name}
-                                            />
-                                        ))}
-                                    </SelectGroup>
-                                </NativeSelectScrollView>
-                            </SelectContent>
-                        </Select>
-
-                        {savingTrip && (
-                            <View className="mt-2">
-                                <ActivityIndicator size="small" color="#000" />
-                            </View>
-                        )}
-                    </View>
 
                     <Card className="mb-4 bg-primary/30 border border-border">
                         <CardHeader>
