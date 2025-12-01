@@ -5,7 +5,7 @@ import {
     Image,
     ScrollView,
     View,
-    Switch,
+    Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -217,33 +217,49 @@ export default function CartScreen() {
                                             </View>
                                         </View>
 
-                                        {/* Home Tax Toggle */}
-                                        <View className="mt-3 flex-row items-center justify-end gap-3">
-                                            <Text className="text-sm text-muted-foreground">
-                                                Use Home Tax Rate
+                                        {/* Tax preference toggle */}
+                                        <View className="mt-3 flex-row items-center justify-end gap-2">
+                                            <Text className="text-sm text-muted-foreground mr-2">
+                                                Tax preference
                                             </Text>
-                                            <Switch
-                                                value={item.homeTax}
-                                                onValueChange={(value) => {
-                                                    const key = getItemKey(item);
-                                                    updateHomeTax(key, value).catch(
-                                                        (error) => {
+                                            <View className="flex-row rounded-full border border-border overflow-hidden">
+                                                <Pressable
+                                                    onPress={() => {
+                                                        const key = getItemKey(item);
+                                                        updateHomeTax(key, false).catch((error) => {
                                                             Alert.alert(
                                                                 "Error",
                                                                 error instanceof Error ?
                                                                     error.message :
                                                                     "Failed to update tax preference"
                                                             );
-                                                        }
-                                                    );
-                                                }}
-                                                trackColor={{ false: "#767577", true: "#81b0ff" }}
-                                                thumbColor={
-                                                    item.homeTax ?
-                                                        "#f5dd4b" :
-                                                        "#4a474aff"
-                                                }
-                                            />
+                                                        });
+                                                    }}
+                                                    className={`px-3 py-2 ${item.homeTax ? "bg-card" : "bg-primary"}`}
+                                                >
+                                                    <Text className={`text-xs font-semibold ${item.homeTax ? "text-muted-foreground" : "text-primary-foreground"}`}>
+                                                        Buy on trip
+                                                    </Text>
+                                                </Pressable>
+                                                <Pressable
+                                                    onPress={() => {
+                                                        const key = getItemKey(item);
+                                                        updateHomeTax(key, true).catch((error) => {
+                                                            Alert.alert(
+                                                                "Error",
+                                                                error instanceof Error ?
+                                                                    error.message :
+                                                                    "Failed to update tax preference"
+                                                            );
+                                                        });
+                                                    }}
+                                                    className={`px-3 py-2 ${item.homeTax ? "bg-primary" : "bg-card"}`}
+                                                >
+                                                    <Text className={`text-xs font-semibold ${item.homeTax ? "text-primary-foreground" : "text-muted-foreground"}`}>
+                                                        Send home
+                                                    </Text>
+                                                </Pressable>
+                                            </View>
                                         </View>
 
                                         <View className="mt-4 flex-row justify-end gap-4">

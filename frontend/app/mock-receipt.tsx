@@ -1,13 +1,32 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { ArrowLeftIcon, ShoppingBagIcon } from 'lucide-react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Modal,
+  TextInput,
+} from 'react-native';
+import { ArrowLeftIcon } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCart } from '@/context/cart-context';
 import type { CartItem, Receipt } from '@/types/user';
 import { useUser } from '@/hooks/useUser';
-import { createReceiptForTrip } from '@/lib/firebase';
-
-// No backend calls here; compute a simple local tax.
+import {
+  addCategory,
+  addTransaction,
+  createReceiptForTrip,
+  getFinance,
+  updateBudget,
+} from '@/lib/firebase';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 
 type ReceiptItem = {
@@ -127,14 +146,40 @@ export default function MockReceiptScreen() {
   const date = new Date().toLocaleString();
 
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [finance, setFinance] = useState<{ budget: number; categories?: Array<{ id: string; name: string; items?: any[] }> } | null>(null);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [creatingNewCategory, setCreatingNewCategory] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [txName, setTxName] = useState('Receipt total');
+  const selectedCategoryOption = useMemo(() => {
+    const cat = finance?.categories?.find((c) => c.id === selectedCategoryId);
+    return cat ? {value: cat.id, label: cat.name} : undefined;
+  }, [finance?.categories, selectedCategoryId]);
+
   useEffect(() => {
     async function fetchReceipt() {
       if (!userProfile?.currentTripId) return;
+      if (items.length === 0) return;
       const rec = await createReceiptForTrip(userProfile.currentTripId, items);
       setReceipt(rec);
     }
     fetchReceipt();
-  }, [userProfile?.currentTripId, items]);
+  }, [userProfile?.currentTripId, params?.ids, cartItems.length]);
+
+  useEffect(() => {
+    async function loadFinance() {
+      if (!userProfile?.currentTripId) return;
+      try {
+        const fin = await getFinance(userProfile.currentTripId);
+        setFinance(fin);
+      } catch (err) {
+        console.error('Failed to load finance', err);
+      }
+    }
+    loadFinance();
+  }, [userProfile?.currentTripId]);
   
   const currencyLocal = receipt?.currency || 'USD';
   const subtotal = receipt?.subtotal || 0;
@@ -149,6 +194,63 @@ export default function MockReceiptScreen() {
   const exchangeRate = 1.0; // Assume 1:1 for simplicity
   const totalHome = totalLocal * exchangeRate;
 
+  async function handleApplyToBudget() {
+    if (!userProfile?.currentTripId || !finance) return;
+    if (!creatingNewCategory && !selectedCategoryId) {
+      Alert.alert('Pick a category', 'Select a category or choose "Create new category".');
+      return;
+    }
+    if (creatingNewCategory && !newCategoryName.trim()) {
+      Alert.alert('Name required', 'Enter a category name.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const tripId = userProfile.currentTripId;
+      let catId = selectedCategoryId;
+      let createdCat: { id: string; name: string } | null = null;
+
+      if (creatingNewCategory) {
+        createdCat = await addCategory(tripId, newCategoryName.trim()) as { id: string; name: string };
+        catId = createdCat.id;
+      }
+
+      const amount = totalLocal;
+      const name = txName.trim() || 'Receipt total';
+      const tx = await addTransaction(tripId, catId as string, name, amount);
+
+      const newBudget = Math.max(0, (finance.budget || 0) - amount);
+      await updateBudget(tripId, newBudget);
+
+      setFinance((prev) => {
+        if (!prev) return prev;
+        const categories = [...(prev.categories || [])];
+        if (createdCat) {
+          categories.unshift({ ...createdCat, items: [] });
+        }
+        const idx = categories.findIndex((c) => c.id === catId);
+        if (idx >= 0) {
+          const items = [...(categories[idx].items || [])];
+          items.unshift(tx);
+          categories[idx] = { ...categories[idx], items };
+        }
+        return { ...prev, budget: newBudget, categories };
+      });
+
+      setCategoryModalOpen(false);
+      setSelectedCategoryId(null);
+      setNewCategoryName('');
+      setCreatingNewCategory(false);
+      setTxName('Receipt total');
+      router.push('/(tabs)/finance');
+    } catch (err) {
+      console.error('Failed to apply to budget', err);
+      Alert.alert('Budget update failed', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   const BestWayToPay = () => (
     <View className="p-3 my-4 bg-primary/30 rounded-lg border border-yellow-200">
@@ -271,14 +373,101 @@ export default function MockReceiptScreen() {
             </View>
            
             {/* Action Buttons */}
-            <TouchableOpacity className="mt-6 p-4 bg-blue-600 rounded-lg bg-primary">
+            <View className="mt-6">
+              <Text className="text-sm text-gray-600 mb-2">
+                Budget: {formatAmount(finance?.budget ?? 0, currencyLocal)}
+              </Text>
+              <TouchableOpacity
+                className="p-4 bg-primary rounded-lg"
+                onPress={() => {
+                  setTxName('Receipt total');
+                  setCategoryModalOpen(true);
+                }}
+                disabled={!userProfile?.currentTripId || totalLocal <= 0}
+              >
                 <Text className="text-center text-[18px] font-bold text-white">
-                    Add to Shopping Bag
+                  Add to Budget
                 </Text>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </ScrollView>
+
+      {/* Category picker modal */}
+      <Modal visible={categoryModalOpen} animationType="slide" transparent>
+        <View className="flex-1 bg-black/40 justify-end">
+          <View className="bg-white p-4 rounded-t-2xl">
+            <Text className="text-lg font-bold mb-3">Add receipt to a category</Text>
+
+            <Text className="text-sm text-gray-600 mb-2">Choose category</Text>
+            <Select
+              value={
+                creatingNewCategory
+                  ? {value: '__new__', label: 'Create new category'}
+                  : selectedCategoryOption
+              }
+              onValueChange={(option) => {
+                const id = option?.value ?? null;
+                if (id === '__new__') {
+                  setCreatingNewCategory(true);
+                  setSelectedCategoryId(null);
+                } else {
+                  setCreatingNewCategory(false);
+                  setSelectedCategoryId(id);
+                  setNewCategoryName('');
+                }
+              }}
+            >
+              <SelectTrigger className="w- border border-border rounded px-3 mb-2 bg-white">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__new__" label="Create new category" />
+                {finance?.categories?.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id} label={cat.name} />
+                ))}
+              </SelectContent>
+            </Select>
+
+            {creatingNewCategory && (
+              <>
+                <Text className="mt-2 text-sm text-gray-600">Name your category</Text>
+                <TextInput
+                  className="mt-2 border border-border rounded p-3"
+                  placeholder="New category name"
+                  value={newCategoryName}
+                  onChangeText={(t) => {
+                    setNewCategoryName(t);
+                  }}
+                />
+              </>
+            )}
+            <Text className="mt-3 text-sm text-gray-600">Transaction name</Text>
+            <TextInput
+              className="mt-2 border border-border rounded p-3"
+              placeholder="Receipt total"
+              value={txName}
+              onChangeText={setTxName}
+            />
+
+            <View className="mt-4 flex-row justify-end gap-3">
+              <TouchableOpacity onPress={() => setCategoryModalOpen(false)}>
+                <Text className="text-base text-gray-600">Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                disabled={submitting}
+                onPress={handleApplyToBudget}
+                className="px-4 py-2 bg-primary rounded"
+              >
+                <Text className="text-white font-semibold">
+                  {submitting ? 'Saving...' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -293,4 +482,3 @@ export default function MockReceiptScreen() {
 //   // If you were using an SVG component for the zigzag:
 //   // zigZag: { ... }
 // });
-

@@ -18,12 +18,7 @@ const user = {
 
 export default function Profile() {
     return (
-        <LinearGradient
-            colors={["#b8d9f6", "#f8fcffff"]}
-            style={{ flex: 1 }}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-        >
+        <View className="flex-1 bg-white">
             <SafeAreaView className="flex-1">
                 <Image
                     source={clouds}
@@ -113,6 +108,6 @@ export default function Profile() {
                     </View>
                 </ScrollView>
             </SafeAreaView>
-        </LinearGradient>
+        </View>
     );
 }
