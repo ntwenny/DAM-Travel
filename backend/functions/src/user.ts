@@ -1,7 +1,6 @@
 import {UserProperties} from "@/types/user";
 import * as admin from "firebase-admin";
 import {firestore} from "firebase-admin";
-import {createTripInternal} from "./trip";
 import {auth} from "firebase-functions/v1";
 import * as logger from "firebase-functions/logger";
 import {HttpsError} from "firebase-functions/v1/https";

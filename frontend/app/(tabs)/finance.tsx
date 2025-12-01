@@ -17,6 +17,7 @@ import {
 } from '@/lib/firebase';
 import { useUser } from '@/hooks/useUser';
 import { useCurrency } from "@/context/currency-context";
+import { getCurrencySymbol } from "@/lib/utils";
 
 type Item = { id: string; name: string; amount: number; timestamp?: number };
 type Category = { id: string; name: string; items: Item[] };
@@ -24,13 +25,17 @@ type Category = { id: string; name: string; items: Item[] };
 // Circular Progress Component
 const CircularProgress = ({ 
   spent, 
-  total, 
+  total,
+  totalSpentDisplay,
+  currencySymbol = "$",
   size = 220, 
   strokeWidth = 20 
 }: { 
-  spent: number; 
-  total: number; 
-  size?: number; 
+  spent: number;
+  total: number;
+  totalSpentDisplay: number;
+  currencySymbol?: string;
+  size?: number;
   strokeWidth?: number;
 }) => {
   const percentage = Math.min((spent / total) * 100, 100);
@@ -74,7 +79,7 @@ const CircularProgress = ({
       {/* Center text */}
       <View className="items-center justify-center">
         <Text className="text-3xl font-bold text-black">
-          ${spent.toFixed(2)}
+          {currencySymbol}{totalSpentDisplay.toFixed(2)}
         </Text>
         <Text className="text-base text-gray-500 mt-1">Spent</Text>
       </View>
@@ -98,6 +103,9 @@ export default function FinanceScreen() {
         return categories.reduce((sum, c) => sum + c.items.reduce((s, it) => s + Number(it.amount || 0), 0), 0);
     }, [categories]);
     const totalSpentDisplay = convertAmount(totalSpent);
+
+    // Get currency symbol
+    const currencySymbol = getCurrencySymbol(displayCurrency);
 
     // Calculate percent of budget spent
     const percent = useMemo(() => {
@@ -126,7 +134,7 @@ export default function FinanceScreen() {
                 setLoading(true);
 
                 console.log('Loading finance data for trip:', currentTripId);
-                const financeData = await getFinance(currentTripId);
+                const financeData = await getFinance(currentTripId as string);
                 console.log('Finance data loaded:', financeData);
 
                 setBudget(financeData.budget || 0);
@@ -165,13 +173,17 @@ export default function FinanceScreen() {
     // Sync currency base/display when trip changes
     useEffect(() => {
         if (userProfile?.currentTripId) {
-            const tripCurrency = categories.length > 0 ? displayCurrency : (userProfile as any)?.currency;
-            if (tripCurrency) {
-                setBaseCurrency(tripCurrency);
-                setDisplayCurrency(tripCurrency);
-            }
+            // Base currency is always USD since items are stored in USD
+            setBaseCurrency("USD");
+            
+            // Set display currency to home currency from user profile
+            const homeCurrency = userProfile?.homeCountry ? 
+                (({ US: "USD", FR: "EUR", GB: "GBP", JP: "JPY", CA: "CAD", AU: "AUD", CN: "CNY", IN: "INR" } as const)[userProfile.homeCountry] || "USD") : 
+                "USD";
+            setDisplayCurrency(homeCurrency);
         }
-    }, [userProfile?.currentTripId, setBaseCurrency, setDisplayCurrency]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userProfile?.currentTripId]); // Only depend on trip ID, not the setter functions
 
     // Hard-coded header colors for the first three categories (by original order)
     const categoryHeaderColors = [
@@ -341,7 +353,7 @@ export default function FinanceScreen() {
                             <View className="items-center">
                                 <Text className="text-sm text-gray-500">Monthly budget</Text>
                                 <Text className="text-2xl font-bold text-black">
-                                    {displayCurrency} {Number(convertAmount(budget)).toFixed(2)}
+                                    {currencySymbol}{Number(convertAmount(budget)).toFixed(2)}
                                 </Text>
                             </View>
                             <Pressable
@@ -356,13 +368,15 @@ export default function FinanceScreen() {
                         <CircularProgress 
                             spent={totalSpent} 
                             total={budget}
+                            totalSpentDisplay={totalSpentDisplay}
+                            currencySymbol={currencySymbol}
                         />
 
                         {/* Remaining Amount */}
                         <View className="flex-row items-center mt-6">
                             <Text className="text-base text-gray-700 mr-2">Left to spend:</Text>
                             <Text className="text-xl font-semibold" style={{ color: '#06ADD8' }}>
-                                {displayCurrency} {Number(convertAmount(Math.max(budget - totalSpent, 0))).toFixed(2)}
+                                {currencySymbol}{Number(convertAmount(Math.max(budget - totalSpent, 0))).toFixed(2)}
                             </Text>
                         </View>
                     </View>
@@ -624,7 +638,7 @@ export default function FinanceScreen() {
                             </View>
 
                             <View className="flex-row items-center">
-                                <Text className="text-white text-lg mr-2">${cat.items.reduce((s, it) => s + it.amount, 0).toFixed(2)}</Text>
+                                <Text className="text-white text-lg mr-2">{currencySymbol}{convertAmount(cat.items.reduce((s, it) => s + it.amount, 0)).toFixed(2)}</Text>
                                 <Pressable
                                     onPressIn={(e: any) => {
                                         const { pageX, pageY } = e.nativeEvent;
@@ -649,7 +663,7 @@ export default function FinanceScreen() {
                                     <Text className="text-gray-500 text-sm mt-1">{new Date(it.timestamp ?? 0).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</Text>
                                 </View>
                                 <View className="flex-row items-center">
-                                    <Text className="text-black text-[17px]"> $ {String(it.amount)} </Text>
+                                    <Text className="text-black text-[17px]">{currencySymbol}{convertAmount(it.amount).toFixed(2)}</Text>
                                     <Pressable onPress={() => confirmDeleteItem(cat.id, it.id)} className="ml-2 p-2">
                                         <Trash2 size={14} color="#ef4444" />
                                     </Pressable>

@@ -11,7 +11,7 @@ import {
 import { ArrowLeftIcon } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCart } from '@/context/cart-context';
-import type { CartItem, Receipt } from '@/types/user';
+import type { CartItem, Receipt, Trip } from '@/types/user';
 import { useUser } from '@/hooks/useUser';
 import {
   addCategory,
@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCurrency } from '@/context/currency-context';
+import { getCurrencySymbol } from '@/lib/utils';
 
 
 type ReceiptItem = {
@@ -71,9 +72,20 @@ const COLORS = {
 
 
 // --- Component for an Item Row ---
-const ItemRow = ({ name, quantity, price, currency }: ReceiptItem) => {
-  const unit = formatAmount(price, currency);
-  const lineTotal = formatAmount((price || 0) * (quantity || 0), currency);
+const ItemRow = ({ 
+  name, 
+  quantity, 
+  price, 
+  convertAmount, 
+  displayCurrency 
+}: ReceiptItem & { 
+  convertAmount: (amount: number) => number; 
+  displayCurrency: string; 
+}) => {
+  const currencySymbol = getCurrencySymbol(displayCurrency);
+  const convertedPrice = convertAmount(price);
+  const convertedTotal = convertAmount((price || 0) * (quantity || 0));
+  
   return (
   // Use a transparent background with light grey border for the item box
   <View className={`flex-row items-center justify-between p-3 my-2 bg-card rounded-lg border border-border`}>
@@ -81,24 +93,35 @@ const ItemRow = ({ name, quantity, price, currency }: ReceiptItem) => {
       {/* Font size 18px and black text for item details */}
       <Text className="text-lg font-semibold text-black ">{name}</Text>
       <Text className="text-lg text-gray-500 ">Qty {quantity}</Text>
-      <Text className="text-base text-gray-600 ">{unit} each</Text>
+      <Text className="text-base text-gray-600 ">{currencySymbol}{convertedPrice.toFixed(2)} each</Text>
     </View>
     <Text className="text-lg font-semibold text-right text-black dark:text-white">
-      {lineTotal}
+      {currencySymbol}{convertedTotal.toFixed(2)}
     </Text>
   </View>
 )};
 
 
 // --- Component for a Fee/Refund Row ---
-const BreakdownRow = ({ label, amountLocal, type }: { label: string; amountLocal: number; type: 'fee' | 'refund' }) => {
+const BreakdownRow = ({ 
+  label, 
+  amountLocal, 
+  type,
+  convertAmount,
+  displayCurrency
+}: { 
+  label: string; 
+  amountLocal: number; 
+  type: 'fee' | 'refund';
+  convertAmount: (amount: number) => number;
+  displayCurrency: string;
+}) => {
   const isFee = amountLocal < 0;
-  const displayAmount = formatAmount(Math.abs(amountLocal));
-
+  const currencySymbol = getCurrencySymbol(displayCurrency);
+  const convertedAmount = convertAmount(Math.abs(amountLocal));
 
   // Force black text for breakdown rows (labels and amounts)
   const textColor = 'text-black';
-
 
   return (
     <View className="flex-row items-center justify-between py-3">
@@ -110,7 +133,7 @@ const BreakdownRow = ({ label, amountLocal, type }: { label: string; amountLocal
       {/* Apply specific color and font size 18px */}
       <Text className={`text-lg font-medium ${textColor}`}>
         {isFee ? '-' : '+'}
-        {displayAmount}
+        {currencySymbol}{convertedAmount.toFixed(2)}
       </Text>
     </View>
   );
@@ -148,7 +171,8 @@ export default function MockReceiptScreen() {
   const date = new Date().toLocaleString();
 
   const [receipt, setReceipt] = useState<Receipt | null>(null);
-  const [finance, setFinance] = useState<{ budget: number; categories?: Array<{ id: string; name: string; items?: any[] }> } | null>(null);
+  const [currentTrip, setCurrentTrip] = useState<any>(null);
+  const [finance, setFinance] = useState<{ budget: number; categories?: { id: string; name: string; items?: any[] }[] } | null>(null);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -170,13 +194,26 @@ export default function MockReceiptScreen() {
     fetchReceipt();
   }, [userProfile?.currentTripId, params?.ids, cartItems.length]);
 
-  // Sync base/display currency to current trip
+  // Fetch current trip to get trip currency
   useEffect(() => {
-    if (userProfile?.currentTripId && receipt?.currency) {
-      setBaseCurrency(receipt.currency);
-      setDisplayCurrency(receipt.currency);
+    if (userProfile?.currentTripId && userProfile?.trips) {
+      const trip = userProfile.trips.find((t: Trip) => t.id === userProfile.currentTripId);
+      setCurrentTrip(trip || null);
     }
-  }, [userProfile?.currentTripId, receipt?.currency, setBaseCurrency, setDisplayCurrency]);
+  }, [userProfile?.currentTripId, userProfile?.trips]);
+
+  // Sync base/display currency - base is always USD since items are stored in USD
+  useEffect(() => {
+    if (userProfile?.currentTripId) {
+      setBaseCurrency("USD");
+      // Set display to home currency from user profile
+      const homeCurrency = userProfile?.homeCountry ? 
+        (({ US: "USD", FR: "EUR", GB: "GBP", JP: "JPY", CA: "CAD", AU: "AUD", CN: "CNY", IN: "INR" } as const)[userProfile.homeCountry] || "USD") : 
+        "USD";
+      setDisplayCurrency(homeCurrency);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userProfile?.currentTripId]);
 
   useEffect(() => {
     async function loadFinance() {
@@ -192,6 +229,15 @@ export default function MockReceiptScreen() {
   }, [userProfile?.currentTripId]);
   
   const currencyLocal = displayCurrency || receipt?.currency || 'USD';
+  
+  // Calculate home currency from user profile
+  const homeCurrency = userProfile?.homeCountry ? 
+    (({ US: "USD", FR: "EUR", GB: "GBP", JP: "JPY", CA: "CAD", AU: "AUD", CN: "CNY", IN: "INR" } as const)[userProfile.homeCountry] || "USD") : 
+    "USD";
+  
+  // Get trip currency from current trip, fallback to EUR
+  const tripCurrency = currentTrip?.currency || "EUR";
+  
   const subtotal = receipt?.subtotal || 0;
   const tax = receipt?.tax || 0;
   const totalLocal = receipt?.total || 0;
@@ -287,11 +333,26 @@ export default function MockReceiptScreen() {
             </TouchableOpacity>
 
 
-            {/* Top Right: Currency Button (Orange) */}
-            <View className={`flex-row items-center px-4 py-2 bg-[${COLORS.orange}] rounded-full shadow-md`}>
-              <Text className="text-lg font-bold text-white pr-1">$</Text>
+            {/* Top Right: Currency Button (Orange) - Toggle between home and trip currency */}
+            <TouchableOpacity 
+              className={`flex-row items-center px-4 py-2 bg-[${COLORS.orange}] rounded-full shadow-md`}
+              onPress={async () => {
+                const target = displayCurrency === homeCurrency ? tripCurrency : homeCurrency;
+                try {
+                  await setDisplayCurrency(target);
+                  Alert.alert(
+                    'Currency Changed',
+                    `Showing prices in ${target} ${displayCurrency === homeCurrency ? '(trip)' : '(home)'}`
+                  );
+                } catch (err) {
+                  console.error('Failed to change currency', err);
+                  Alert.alert('Error', 'Unable to change currency.');
+                }
+              }}
+            >
+              <Text className="text-lg font-bold text-white pr-1">{getCurrencySymbol(displayCurrency || currencyLocal)}</Text>
               <Text className="text-lg font-bold text-white">{displayCurrency || currencyLocal}</Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
 
@@ -336,7 +397,11 @@ export default function MockReceiptScreen() {
             {/* Item List */}
             {items.map((item) => (
               <React.Fragment key={item.id}>
-                <ItemRow {...item} />
+                <ItemRow 
+                  {...item} 
+                  convertAmount={convertAmount}
+                  displayCurrency={displayCurrency || currencyLocal}
+                />
               </React.Fragment>
             ))}
 
@@ -349,7 +414,12 @@ export default function MockReceiptScreen() {
 
             {/* Fees and Taxes Breakdown */}
             {breakdown.map((item, index) => (
-              <BreakdownRow key={index} {...item} />
+              <BreakdownRow 
+                key={index} 
+                {...item} 
+                convertAmount={convertAmount}
+                displayCurrency={displayCurrency || currencyLocal}
+              />
             ))}
 
 
@@ -451,8 +521,7 @@ export default function MockReceiptScreen() {
             <Text className="mt-3 text-sm text-gray-600">Transaction name</Text>
             <TextInput
               className="mt-2 border border-border rounded p-3"
-              placeholder="Receipt total"
-              value={txName}
+              placeholder="Transaction name"
               onChangeText={setTxName}
             />
 

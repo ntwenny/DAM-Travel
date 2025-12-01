@@ -29,6 +29,7 @@ import {
     TouchableOpacity,
     Image,
     ImageBackground,
+    TextInput,
     ScrollView,
     Linking,
     RefreshControl,
@@ -67,6 +68,7 @@ import { useToast } from "@/hooks/useToast";
 import { BudgetDialog } from "@/components/budget-dialog";
 import { useUser } from "@/hooks/useUser";
 import type { Trip, TripItem } from "@/types/user";
+import { getCurrencySymbol } from "@/lib/utils";
 // Modal is provided by react-native in the main import block
 import { Input } from "@/components/ui/input";
 import { useCart } from "@/context/cart-context";
@@ -102,18 +104,23 @@ const locations = Object.values(countryList.all)
         currency: country.currency,
         continent: country.continent,
         GraphicComponent: continentGraphics[country.continent!] || null,
-    }));
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 
 function TripItemCarousel({
     items,
     onItemPress,
     onProductPagePress,
     onAddToCart,
+    currencySymbol,
+    convertAmount,
 }: {
     items: TripItem[];
     onItemPress: (item: TripItem) => void;
     onProductPagePress: (item: TripItem) => void;
     onAddToCart: (item: TripItem) => void;
+    currencySymbol: string;
+    convertAmount: (amount: number) => number;
 }) {
     return (
         <View className="mb-4">
@@ -147,8 +154,8 @@ function TripItemCarousel({
                                 </Text>
                             </View>
                             <Text className="text-foreground font-[JosefinSans-Regular] text-start p-2">
-                                Available For: $
-                                {item.price?.toFixed(2) || "N/A"}
+                                Available For: {currencySymbol}
+                                {convertAmount(item.price || 0).toFixed(2)}
                             </Text>
 
                             <View className="flex flex-row gap-x-2 justify-end items-end mx-2">
@@ -217,6 +224,7 @@ export default function Home() {
     const [showCreateTripDialog, setShowCreateTripDialog] = useState(false);
     const [newTripName, setNewTripName] = useState("");
     const [newTripDestination, setNewTripDestination] = useState("");
+    const [destinationSearch, setDestinationSearch] = useState("");
     const [creatingTrip, setCreatingTrip] = useState(false);
 
     const { convertAmount, displayCurrency, setBaseCurrency, setDisplayCurrency } = useCurrency();
@@ -285,13 +293,15 @@ export default function Home() {
         setCurrentTrip(trips[0] ?? null);
     }, [trips, userProfile?.currentTripId]);
 
-    // Sync base currency with current trip currency
+    // Set base currency to USD (items are stored in USD), display home currency initially
+    // Only run when trip changes, not when currency functions change
     useEffect(() => {
-        if (currentTrip?.currency) {
-            setBaseCurrency(currentTrip.currency);
-            setDisplayCurrency(currentTrip.currency);
+        if (currentTrip && homeCurrency) {
+            setBaseCurrency("USD"); // Base is always USD since items are stored in USD
+            setDisplayCurrency(homeCurrency); // Display starts with home currency
         }
-    }, [currentTrip?.currency, setBaseCurrency, setDisplayCurrency]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentTrip?.id, homeCurrency]);
 
     useFocusEffect(
         useCallback(() => {
@@ -472,6 +482,9 @@ export default function Home() {
 
     const remainingBudget = (currentTrip?.budget ?? 0) - totalSpent;
     const remainingBudgetDisplay = convertAmount(remainingBudget);
+
+    // Get the current currency symbol
+    const currencySymbol = getCurrencySymbol(displayCurrency);
 
     const locationRef = useRef(null);
     const insets = useSafeAreaInsets();
@@ -682,17 +695,37 @@ export default function Home() {
                                 <SelectValue placeholder="Select destination" />
                             </SelectTrigger>
                             <SelectContent>
+                                <View className="p-2 border-b border-border">
+                                    <TextInput
+                                        value={destinationSearch}
+                                        onChangeText={setDestinationSearch}
+                                        placeholder="Search countries..."
+                                        className="bg-white px-3 py-2 rounded border border-border"
+                                        placeholderTextColor="#999"
+                                    />
+                                </View>
                                 <NativeSelectScrollView>
                                     <SelectGroup>
-                                        {locations.map((country) => (
-                                            <SelectItem
-                                                key={country.value}
-                                                label={country.label}
-                                                value={country.value}
-                                            >
-                                                {country.label}
-                                            </SelectItem>
-                                        ))}
+                                        {locations
+                                            .filter((country) => 
+                                                country.label.toLowerCase().includes(destinationSearch.toLowerCase())
+                                            )
+                                            .map((country) => (
+                                                <SelectItem
+                                                    key={country.value}
+                                                    label={country.label}
+                                                    value={country.value}
+                                                >
+                                                    {country.label}
+                                                </SelectItem>
+                                            ))}
+                                        {locations.filter((country) => 
+                                            country.label.toLowerCase().includes(destinationSearch.toLowerCase())
+                                        ).length === 0 && (
+                                            <View className="p-4">
+                                                <Text className="text-center text-gray-500">No countries found</Text>
+                                            </View>
+                                        )}
                                     </SelectGroup>
                                 </NativeSelectScrollView>
                             </SelectContent>
@@ -878,31 +911,32 @@ export default function Home() {
                         <Button
                             variant="secondary"
                             className=" rounded border border-gray-300"
-                            onPress={() => {
+                            onPress={async () => {
                                 const target =
-                                    displayCurrency === (currentTrip?.currency || "USD")
-                                        ? homeCurrency
-                                        : (currentTrip?.currency || "USD");
-                                setDisplayCurrency(target).then(() => {
+                                    displayCurrency === homeCurrency
+                                        ? (currentTrip?.currency || "USD")
+                                        : homeCurrency;
+                                try {
+                                    await setDisplayCurrency(target);
                                     toast({
                                         title: "Currency Changed",
-                                        description: `Showing prices in ${target}`,
+                                        description: `Showing prices in ${target} ${displayCurrency === homeCurrency ? '(trip)' : '(home)'}`,
                                         variant: "success",
                                     });
-                                }).catch((err) => {
+                                } catch (err) {
                                     console.error("Failed to change currency", err);
                                     toast({
                                         title: "Error",
                                         description: "Unable to change currency.",
                                         variant: "error",
                                     });
-                                });
+                                }
                             }}
                         >
                             <View className="flex-row items-center">
                                 <DollarSign size={16} color="white" />
                                 <Text className="ml-2 text-white">
-                                    {displayCurrency}
+                                    {displayCurrency} {displayCurrency === homeCurrency ? '(home)' : '(trip)'}
                                 </Text>
                             </View>
                         </Button>
@@ -1015,6 +1049,8 @@ export default function Home() {
                     {currentTrip && (
                         <TripItemCarousel
                             items={tripItems}
+                            currencySymbol={currencySymbol}
+                            convertAmount={convertAmount}
                             onItemPress={(item) =>
                                 router.push({
                                     pathname: "/similar-products",
@@ -1076,7 +1112,7 @@ export default function Home() {
                                 <View className="flex-row items-center">
                                     <DollarSign size={24} color="black" />
                                     <Text className="text-xl ml-2">
-                                        ${(currentTrip?.budget ?? 0).toFixed(2)}
+                                        {currencySymbol}{convertAmount(currentTrip?.budget ?? 0).toFixed(2)}
                                     </Text>
                                 </View>
                                 <Button
@@ -1114,8 +1150,8 @@ export default function Home() {
                                                     </Text>
                                                 </View>
                                                 <Text>
-                                                    -$
-                                                    {(item.price || 0).toFixed(
+                                                    -{currencySymbol}
+                                                    {convertAmount(item.price || 0).toFixed(
                                                         2
                                                     )}
                                                 </Text>

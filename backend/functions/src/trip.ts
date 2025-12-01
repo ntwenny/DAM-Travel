@@ -302,7 +302,7 @@ export async function addTripItemInternal(
     id: newItemRef.id,
     name: item.name || "Unnamed Item",
     price: item.price || 0,
-    currency: item.currency || trip.currency,
+    currency: item.currency || "USD", // Always default to USD if no currency provided
     thumbnail: item.thumbnail,
     productPage: item.productPage,
     source: item.source,
@@ -807,15 +807,27 @@ export const getTrips = onCall(async (request) => {
           budget: 0,
           categories: [],
         },
+        homeCountry: "US",
       };
       await userRef.set(initialData);
       return {trips: []};
     } catch (error) {
       console.error(`Failed to create user document for ${uid}`, error);
-      throw new HttpsError(
-        "internal",
-        "Failed to retrieve or create user data."
-      );
+      // Fallback: create a minimal doc without auth info to unblock the user
+      const fallback = {
+        email: "",
+        displayName: "",
+        photoURL: "",
+        createdAt: new Date(),
+        trips: [],
+        finance: {
+          budget: 0,
+          categories: [],
+        },
+        homeCountry: "US",
+      };
+      await userRef.set(fallback);
+      return {trips: []};
     }
   }
 
