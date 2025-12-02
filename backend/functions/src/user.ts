@@ -111,7 +111,6 @@ export const onUserDelete = auth.user().onDelete(async (user) => {
  * Updates both the Firestore user document and the Authentication displayName when provided.
  */
 export const updateUser = functions.https.onCall(async (request) => {
-  console.log(request);
   if (!request || !request.auth || !request.auth.uid) {
     throw new HttpsError("unauthenticated", "User must be authenticated");
   }

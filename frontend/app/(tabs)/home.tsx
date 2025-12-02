@@ -558,7 +558,7 @@ export default function Home() {
                     className="w-full pt-20"
                 >
                     <View className="px-6 pb-4">
-                        <View className="mb-1">
+                        <View className="mb-1 blur-2xl">
                             <Image
                                 source={require("../../components/logo/skypocketlogo.png")}
                                 style={{
@@ -707,8 +707,8 @@ export default function Home() {
                             value={
                                 currentTrip
                                     ? {
-                                          label: currentTrip.name,
                                           value: currentTrip.id,
+                                          label: currentTrip.name,
                                       }
                                     : undefined
                             }

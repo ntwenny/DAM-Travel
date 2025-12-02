@@ -220,13 +220,6 @@ export default function ScanScreen() {
                                 Save / Upload
                             </Text>
                         </Pressable>
-
-                        <Button
-                            className="bg-primary px-4 py-2 rounded-lg"
-                            onPress={() => router.push("/diagnostics")}
-                        >
-                            <Text>Diagnostics</Text>
-                        </Button>
                     </View>
                 </View>
             )}
