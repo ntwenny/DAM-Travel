@@ -951,10 +951,10 @@ export const createReceipt = functions.https.onCall(async (request) => {
 
   for (const item of items) {
     const itemPrice = item.price * (item.quantity || 1);
-    
+
     // Determine which country's tax to use
     const taxCountry = item.homeTax ? homeCountry : trip.location;
-    
+
     try {
       const countryCode = taxCountry.trim().toUpperCase();
       const taxInfo = await salesTax.getSalesTax(
@@ -962,17 +962,16 @@ export const createReceipt = functions.https.onCall(async (request) => {
         countryCode === "US" ? "TX" : undefined
       );
       const itemTaxRate = taxInfo.rate || 0;
-      
+
       if (itemTaxRate === 0) {
         console.warn(
           `Tax rate is 0 for country: ${taxCountry} (item: ${item.name})`
         );
       }
-      
+
       const itemTax = currency(itemPrice).multiply(itemTaxRate).value;
       totalTax = currency(totalTax).add(itemTax).value;
       taxRates.push(itemTaxRate);
-      
     } catch (error) {
       console.error(
         `Error getting tax for ${taxCountry} (item: ${item.name}):`,
@@ -983,9 +982,9 @@ export const createReceipt = functions.https.onCall(async (request) => {
   }
 
   // Calculate average tax rate for display
-  const avgTaxRate = taxRates.length > 0 
-    ? taxRates.reduce((sum, rate) => sum + rate, 0) / taxRates.length 
-    : 0;
+  const avgTaxRate = taxRates.length > 0 ?
+    taxRates.reduce((sum, rate) => sum + rate, 0) / taxRates.length :
+    0;
 
   // Add service fees
   const additionalCosts = getAdditionalCosts(trip.location, subtotal);
@@ -1004,7 +1003,7 @@ export const createReceipt = functions.https.onCall(async (request) => {
     country: trip.location,
     taxRate: avgTaxRate,
   };
-  
+
 
   return receipt;
 });

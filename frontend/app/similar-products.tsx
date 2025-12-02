@@ -48,29 +48,45 @@ export default function SimilarProductsScreen() {
         if (!user || !tripId || !tripItemId) return;
 
         async function fetchTripItem() {
-            try {
-                const data = await getTripItem(tripId, tripItemId);
-                setTripItem(data);
-                console.log("Fetched trip item:", data);
+            let retries = 0;
+            const maxRetries = 30; // Try for ~30 seconds
+            const delayMs = 1000; // Wait 1 second between retries
 
-                if (data.parsingStatus === "PARSED") {
-                    setLoading(false);
-                    if (!selectedPage) {
-                        console.log("Moo");
-                        const primaryPage =
-                            data._items?.pages?.find(
-                                (p: ShoppingPage) =>
-                                    p.productPage === data.productPage
-                            ) ||
-                            data._items?.pages?.[0] ||
-                            null;
-                        setSelectedPage(primaryPage);
+            while (retries < maxRetries) {
+                try {
+                    const data = await getTripItem(tripId, tripItemId);
+                    setTripItem(data);
+                    console.log("Fetched trip item:", data);
+
+                    if (data.parsingStatus === "PARSED") {
+                        setLoading(false);
+                        if (!selectedPage) {
+                            const primaryPage =
+                                data._items?.pages?.find(
+                                    (p: ShoppingPage) =>
+                                        p.productPage === data.productPage
+                                ) ||
+                                data._items?.pages?.[0] ||
+                                null;
+                            setSelectedPage(primaryPage);
+                        }
+                        return; // Success, exit
                     }
+                    retries++;
+                } catch (error) {
+                    console.log(`Retry ${retries + 1}/${maxRetries}: Item not ready yet`);
+                    retries++;
                 }
-            } catch (error) {
-                console.error("Failed to fetch trip item", error);
-                setLoading(false);
+
+                // Wait before retrying
+                if (retries < maxRetries) {
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                }
             }
+
+            // If we got here, max retries exceeded
+            console.error("Failed to fetch trip item after max retries");
+            setLoading(false);
         }
 
         fetchTripItem();

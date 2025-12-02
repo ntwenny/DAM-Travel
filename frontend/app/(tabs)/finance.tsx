@@ -356,12 +356,35 @@ export default function FinanceScreen() {
                                     {currencySymbol}{Number(convertAmount(budget)).toFixed(2)}
                                 </Text>
                             </View>
-                            <Pressable
-                                onPress={() => { setBudgetEditValue(String(budget)); setBudgetEditModalVisible(true); }}
-                                style={{ padding: 8, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.05)' }}
-                            >
-                                <Edit size={18} color="#111" />
-                            </Pressable>
+                            <View className="flex-row items-center gap-2">
+                                {/* Currency Toggle Button */}
+                                <Pressable
+                                    onPress={async () => {
+                                        const homeCurrency = userProfile?.homeCountry ? 
+                                            (({ US: "USD", FR: "EUR", GB: "GBP", JP: "JPY", CA: "CAD", AU: "AUD", CN: "CNY", IN: "INR" } as const)[userProfile.homeCountry] || "USD") : 
+                                            "USD";
+                                        const tripCurrency = userProfile?.trips?.find((t: any) => t.id === userProfile.currentTripId)?.currency || "EUR";
+                                        const target = displayCurrency === homeCurrency ? tripCurrency : homeCurrency;
+                                        try {
+                                            await setDisplayCurrency(target);
+                                        } catch (err) {
+                                            console.error('Failed to change currency', err);
+                                            Alert.alert('Error', 'Unable to change currency.');
+                                        }
+                                    }}
+                                    style={{ padding: 8, borderRadius: 8, backgroundColor: '#FFB701' }}
+                                >
+                                    <Text className="text-white font-bold text-xs">{displayCurrency}</Text>
+                                </Pressable>
+                                
+                                {/* Edit Budget Button */}
+                                <Pressable
+                                    onPress={() => { setBudgetEditValue(String(budget)); setBudgetEditModalVisible(true); }}
+                                    style={{ padding: 8, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.05)' }}
+                                >
+                                    <Edit size={18} color="#111" />
+                                </Pressable>
+                            </View>
                         </View>
 
                         {/* Circular Progress Indicator */}

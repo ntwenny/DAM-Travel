@@ -51,7 +51,10 @@ export { auth };
 export const storage = getStorage(app);
 export const firestore = getFirestore(app);
 
-if (__DEV__) {
+// Set to false to use production Firebase, true to use emulators
+const USE_EMULATOR = true;
+
+if (__DEV__ && USE_EMULATOR) {
     // default emulator host/port for functions is localhost:5001
     // If running on Android emulator use 10.0.2.2, on iOS simulator localhost works.
     // Adjust HOST if you run the emulator on a different address.

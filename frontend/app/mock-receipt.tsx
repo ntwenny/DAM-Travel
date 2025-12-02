@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/select';
 import { useCurrency } from '@/context/currency-context';
 import { getCurrencySymbol } from '@/lib/utils';
+import Svg, { Path } from "react-native-svg";
 
 
 type ReceiptItem = {
@@ -167,7 +168,7 @@ export default function MockReceiptScreen() {
     }));
   }, [cartItems, selectedIds]);
 
-  const store = 'Cart Summary';
+  const store = 'Mock Receipt';
   const date = new Date().toLocaleString();
 
   const [receipt, setReceipt] = useState<Receipt | null>(null);
@@ -320,12 +321,29 @@ export default function MockReceiptScreen() {
     </View>
   );
 
+  
+const ZigZag = ({ color = "#FFFFFF", height = 40 }) => {
+  return (
+    <Svg
+      width="100%"
+      height={height}
+      viewBox="0 0 200 40"
+      preserveAspectRatio="none"
+    >
+      <Path
+        d="M0,0 L10,20 L20,0 L30,20 L40,0 L50,20 L60,0 L70,20 L80,0 L90,20 L100,0 L110,20 L120,0 L130,20 L140,0 L150,20 L160,0 L170,20 L180,0 L190,20 L200,0 L200,40 L0,40 Z"
+        fill={color}
+      />
+    </Svg>
+  );
+};
+
 
   return (
     <View className="flex-1 bg-background">
       <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
         {/* --- Top Section (Blue Background) --- */}
-        <View className={`pt-12 pb-20 bg-[${COLORS.lightBlue}]`}>
+        <View style={{ backgroundColor: COLORS.lightBlue, paddingTop: 48, paddingBottom: 20 }}>
           <View className="px-5 flex-row items-center justify-between">
             {/* Top Left: Back Arrow (White) */}
             <TouchableOpacity onPress={() => router.back()} className="p-2">
@@ -335,7 +353,7 @@ export default function MockReceiptScreen() {
 
             {/* Top Right: Currency Button (Orange) - Toggle between home and trip currency */}
             <TouchableOpacity 
-              className={`flex-row items-center px-4 py-2 bg-[${COLORS.orange}] rounded-full shadow-md`}
+              className={`flex-row items-center px-4 py-2 bg-[#FFB701] rounded-lg shadow-md`}
               onPress={async () => {
                 const target = displayCurrency === homeCurrency ? tripCurrency : homeCurrency;
                 try {
@@ -361,24 +379,15 @@ export default function MockReceiptScreen() {
             {formatAmount(totalDisplay, displayCurrency || currencyLocal).replace(String(displayCurrency || currencyLocal), '')}
           </Text>
         </View>
-       
+        
         {/* --- Zig-Zag Separator --- */}
-        <View className="relative w-full h-[60px] mt-[-60px]">
-            {/* The Zig-Zag shape is created using a large, inverse clip-path on the white background.
-                Since React Native doesn't support complex CSS shapes easily, we use a simple,
-                visually clean solid white box as the top part of the receipt body that overlaps
-                the blue area. For an *actual* zig-zag, you would need an SVG or a custom view component.
-                For this implementation, we will simulate the overlap effect as a clean break.
-                If you need the exact zig-zag, we'd need to install and use react-native-svg.
-            */}
+        <View style={{ backgroundColor: COLORS.lightBlue, marginTop: -1 }}>
+          <ZigZag color="#F5F5F5" height={40} />
         </View>
 
-
-
-
         {/* --- Receipt Body (White Background) --- */}
-        <View className="px-4 mt-[-60]">
-          <View className="bg-background p-4 rounded-t-lg shadow-md">
+        <View className="px-4">
+          <View className="bg-background p-4 rounded-t-lg">
             {/* Store Name and Date */}
             <Text className="text-[18px] font-bold text-black mb-1">{store}</Text>
             <Text className="text-[18px] text-gray-500 mb-4">{date}</Text>
@@ -386,7 +395,7 @@ export default function MockReceiptScreen() {
             {/* Dashed line separator (Light Grey) */}
             <View className={`border-b border-dashed border-border mb-4`} />
            
-            <BestWayToPay />
+            {/*<BestWayToPay />*/}
            
             {/* Dashed line separator (Light Grey) */}
             <View className={`border-b border-dashed border-border mb-4`} />

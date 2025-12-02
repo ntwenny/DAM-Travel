@@ -40,7 +40,7 @@ import {
   addTransaction,
   deleteTransaction,
   editTransaction,
-  convertCurrency
+  convertCurrency,
 } from "./finance";
 
 logger.info("Registering Functions...");
