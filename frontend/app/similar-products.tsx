@@ -244,6 +244,85 @@ export default function SimilarProductsScreen() {
                         </CardFooter>
                     </Card>
 
+                    {similarItems.length > 0 && (() => {
+                        const prices = similarItems
+                            .map(item => item.extractedPrice)
+                            .filter((price): price is number => typeof price === 'number' && price > 0);
+
+                        if (prices.length === 0) return null;
+
+                        const minPrice = Math.min(...prices);
+                        const maxPrice = Math.max(...prices);
+
+                        // Calculate current item price position
+                        const currentPrice = 'price' in displayItem
+                            ? displayItem.price
+                            : displayItem.extractedPrice || 0;
+
+                        const priceRange = maxPrice - minPrice;
+                        const pricePosition = priceRange > 0
+                            ? ((currentPrice - minPrice) / priceRange) * 100
+                            : 50;
+
+                        return (
+                            <Card className="w-full mt-6 mb-6">
+                                <CardHeader>
+                                    <CardTitle>
+                                        <Text className="text-lg font-semibold">
+                                            Price Range
+                                        </Text>
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <View className="flex-row justify-between mb-2">
+                                        <Text className="text-sm font-[JosefinSans-Bold] text-green-600">
+                                            ${minPrice.toFixed(2)}
+                                        </Text>
+                                        <Text className="text-sm font-[JosefinSans-Bold] text-red-600">
+                                            ${maxPrice.toFixed(2)}
+                                        </Text>
+                                    </View>
+                                    <View className="relative">
+                                        <View className="h-4 rounded-full overflow-hidden flex-row">
+                                            <View style={{ flex: 1, backgroundColor: '#22c55e' }} />
+                                            <View style={{ flex: 1, backgroundColor: '#34d058' }} />
+                                            <View style={{ flex: 1, backgroundColor: '#65d46e' }} />
+                                            <View style={{ flex: 1, backgroundColor: '#84cc16' }} />
+                                            <View style={{ flex: 1, backgroundColor: '#a3e635' }} />
+                                            <View style={{ flex: 1, backgroundColor: '#fbbf24' }} />
+                                            <View style={{ flex: 1, backgroundColor: '#fb923c' }} />
+                                            <View style={{ flex: 1, backgroundColor: '#f97316' }} />
+                                            <View style={{ flex: 1, backgroundColor: '#f87171' }} />
+                                            <View style={{ flex: 1, backgroundColor: '#ef4444' }} />
+                                        </View>
+                                        <View
+                                            style={{
+                                                position: 'absolute',
+                                                left: `${pricePosition}%`,
+                                                top: -4,
+                                                transform: [{ translateX: -8 }],
+                                            }}
+                                        >
+                                            <View className="items-center">
+                                                <View className="w-6 h-6 rounded-full bg-white border-2 border-primary shadow-lg" />
+                                                <View className="mt-1 bg-primary px-2 py-1 rounded">
+                                                    <Text className="text-xs font-[JosefinSans-Bold] text-white">
+                                                        ${currentPrice.toFixed(2)}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        </View>
+                                    </View>
+                                    <View className="flex-row justify-center mt-10">
+                                        <Text className="text-xs text-muted-foreground">
+                                            Lowest to Highest Prices
+                                        </Text>
+                                    </View>
+                                </CardContent>
+                            </Card>
+                        );
+                    })()}
+
                     <View className="mt-6">
                         <Text className="text-lg font-semibold mb-4">
                             Items Found For You

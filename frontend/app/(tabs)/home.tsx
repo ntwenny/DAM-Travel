@@ -520,7 +520,8 @@ export default function Home() {
         : tripItems.reduce((acc, item) => acc + (item.price || 0), 0);
     const totalSpentDisplay = convertAmount(totalSpent);
 
-    const remainingBudget = financeData?.remainingBudget ?? ((currentTrip?.budget ?? 0) - totalSpent);
+    const budget = financeData?.budget ?? currentTrip?.budget ?? 0;
+    const remainingBudget = financeData?.remainingBudget ?? Math.max(budget - totalSpent, 0);
     const remainingBudgetDisplay = convertAmount(remainingBudget);
 
     // Get the current currency symbol
