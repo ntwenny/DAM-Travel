@@ -21,7 +21,9 @@ import {
     StarIcon,
     WrenchIcon,
     Search,
-    Plus
+    Plus,
+    Wallet,
+    ChevronRight
 } from "lucide-react-native";
 import {
     SafeAreaView,
@@ -62,6 +64,7 @@ import {
     createTrip,
     updateUserProfile,
     setCurrentTrip as remoteSetCurrentTrip,
+    getFinance,
 } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/useToast";
@@ -226,6 +229,9 @@ export default function Home() {
     const [newTripDestination, setNewTripDestination] = useState("");
     const [destinationSearch, setDestinationSearch] = useState("");
     const [creatingTrip, setCreatingTrip] = useState(false);
+
+    // Finance data from backend
+    const [financeData, setFinanceData] = useState<any>(null);
 
     const { convertAmount, displayCurrency, setBaseCurrency, setDisplayCurrency } = useCurrency();
 
@@ -401,8 +407,17 @@ export default function Home() {
             if (newCurrent) {
                 const items = await getTripItems(newCurrent.id);
                 setTripItems(items as TripItem[]);
+
+                // Fetch finance data
+                try {
+                    const finance = await getFinance(newCurrent.id);
+                    setFinanceData(finance);
+                } catch (err) {
+                    console.error("Failed to fetch finance data", err);
+                }
             } else {
                 setTripItems([]);
+                setFinanceData(null);
             }
         } catch (error) {
             console.error("Pull-to-refresh failed", error);
@@ -446,6 +461,28 @@ export default function Home() {
         };
     }, [currentTrip, toast]);
 
+    // Fetch finance data from backend when trip changes
+    useEffect(() => {
+        let mounted = true;
+        async function loadFinanceData() {
+            if (!currentTrip) {
+                setFinanceData(null);
+                return;
+            }
+            try {
+                const finance = await getFinance(currentTrip.id);
+                if (mounted) setFinanceData(finance);
+            } catch (err) {
+                console.error("Failed to load finance data", err);
+                if (mounted) setFinanceData(null);
+            }
+        }
+        loadFinanceData();
+        return () => {
+            mounted = false;
+        };
+    }, [currentTrip]);
+
     const handleUpdateBudget = async (newBudget: number) => {
         // TODO: Implement budget update for the trip
         toast({
@@ -474,13 +511,16 @@ export default function Home() {
         }
     };
 
-    const totalSpent = tripItems.reduce(
-        (acc, item) => acc + (item.price || 0),
-        0
-    );
+    // Use backend finance data if available, otherwise calculate locally
+    // Calculate totalSpent the same way as finance.tsx - from categories
+    const totalSpent = financeData?.categories
+        ? financeData.categories.reduce((sum, c) =>
+            sum + (c.items || []).reduce((s, it) => s + Number(it.amount || 0), 0), 0
+        )
+        : tripItems.reduce((acc, item) => acc + (item.price || 0), 0);
     const totalSpentDisplay = convertAmount(totalSpent);
 
-    const remainingBudget = (currentTrip?.budget ?? 0) - totalSpent;
+    const remainingBudget = financeData?.remainingBudget ?? ((currentTrip?.budget ?? 0) - totalSpent);
     const remainingBudgetDisplay = convertAmount(remainingBudget);
 
     // Get the current currency symbol
@@ -557,11 +597,11 @@ export default function Home() {
         );
     }
 
- 
+
 
     return (
         <SafeAreaView className="flex-1 bg-background">
- 
+
             {/* Prompt modal for missing display name and home country */}
             <Modal visible={showNameDialog} transparent animationType="fade">
                 <View className="flex-1 justify-center items-center bg-black/50">
@@ -707,7 +747,7 @@ export default function Home() {
                                 <NativeSelectScrollView>
                                     <SelectGroup>
                                         {locations
-                                            .filter((country) => 
+                                            .filter((country) =>
                                                 country.label.toLowerCase().includes(destinationSearch.toLowerCase())
                                             )
                                             .map((country) => (
@@ -719,13 +759,13 @@ export default function Home() {
                                                     {country.label}
                                                 </SelectItem>
                                             ))}
-                                        {locations.filter((country) => 
+                                        {locations.filter((country) =>
                                             country.label.toLowerCase().includes(destinationSearch.toLowerCase())
                                         ).length === 0 && (
-                                            <View className="p-4">
-                                                <Text className="text-center text-gray-500">No countries found</Text>
-                                            </View>
-                                        )}
+                                                <View className="p-4">
+                                                    <Text className="text-center text-gray-500">No countries found</Text>
+                                                </View>
+                                            )}
                                     </SelectGroup>
                                 </NativeSelectScrollView>
                             </SelectContent>
@@ -824,10 +864,21 @@ export default function Home() {
 
                 {/* Full-width header band (edge-to-edge) as logo background */}
                 <ImageBackground
-                    source={require("../../assets/images/japan.png")}
+                    source={require("../../assets/images/korea.png")}
                     className="w-full pt-20"
 
                 >
+                    {/* Dark overlay */}
+                    <View
+                        style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: "rgba(0, 0, 0, 0.1)",
+                        }}
+                    />
 
                     <View className="px-6 pb-4">
                         {/* top-right menu (three vertical dots) */}
@@ -842,7 +893,7 @@ export default function Home() {
                             <Button
                                 onPress={handleSignOut}
                                 variant="ghost"
-                                className="rounded-full bg-black/40 "
+                                className="rounded-full bg-black/30 "
                             >
                                 <LogOut color="white" size="16" />
                             </Button>
@@ -860,7 +911,7 @@ export default function Home() {
                         </View> */}
                         <View className="flex-col justify-between items-start mb-2">
                             <Text className="text-4xl font-[JosefinSans-Bold] text-white">
-                                你好,
+                                안녕,
                             </Text>
                             <Text className="text-4xl font-[JosefinSans-Bold] text-white">
                                 {user?.displayName || "traveler"}
@@ -876,11 +927,13 @@ export default function Home() {
                 <View className="m-6 flex-1">
                     <View className="flex-row items-center gap-3 mb-4">
                         <View className="flex-1">
-                            <Select>
-                                <SelectTrigger className="w-full bg-white rounded border-white border-5">
+                            <Select className="bg-white rounded-medium border-white border-5">
+                                <SelectTrigger className="w-full bg-white p-2 rounded-medium border-border "
+                                    style={{ backgroundColor: "white" }}
+                                >
                                     <Search className="size-8"></Search>
                                     <SelectValue
-                                        className="text-black"
+                                        className="text-gray-500 font-[JosefinSans-Regular]"
                                         placeholder="Update your location"
                                     />
                                 </SelectTrigger>
@@ -920,7 +973,7 @@ export default function Home() {
                                     await setDisplayCurrency(target);
                                     toast({
                                         title: "Currency Changed",
-                                        description: `Showing prices in ${target} ${displayCurrency === homeCurrency ? '(trip)' : '(home)'}`,
+                                        description: `Showing prices in ${target} ${displayCurrency === homeCurrency}`,
                                         variant: "success",
                                     });
                                 } catch (err) {
@@ -936,7 +989,7 @@ export default function Home() {
                             <View className="flex-row items-center">
                                 <DollarSign size={16} color="white" />
                                 <Text className="ml-2 text-white">
-                                    {displayCurrency} {displayCurrency === homeCurrency ? '(home)' : '(trip)'}
+                                    {displayCurrency} {displayCurrency === homeCurrency}
                                 </Text>
                             </View>
                         </Button>
@@ -947,7 +1000,7 @@ export default function Home() {
                     </Text>
 
                     {/* Trip selector: choose which trip to view locally (dropdown) */}
-                    <View className="mb-4">
+                    <View className="mb-4  ">
                         <Select
                             value={
                                 currentTrip
@@ -1003,11 +1056,12 @@ export default function Home() {
                                 }
                             }}
                         >
-                            <SelectTrigger className="w-full bg-white p-2 r2unded bo-fullrder border-border mb-2">
+                            <SelectTrigger className="w-full bg-white p-2 rounded-medium border-border mb-2"
+                                style={{ backgroundColor: "white" }}>
                                 <SelectValue
                                     className={
                                         currentTrip
-                                            ? "text-black"
+                                            ? "text-gray-500 font-[JosefinSans-Regular]"
                                             : "text-muted-foreground"
                                     }
                                     placeholder="Choose a trip"
@@ -1103,16 +1157,18 @@ export default function Home() {
                         />
                     )}
 
-                    <Card className="mb-4 bg-secondary/30 border border-border">
+                    <Card className="mb-4 bg-primary border border-border text-white">
                         <CardHeader>
-                            <CardTitle>Current Budget</CardTitle>
+                            <View className="flex-row items-center">
+                                <Wallet size={20} color="white" className="mr-5" />
+                                <CardTitle className="text-white ml-3">Current Budget Left</CardTitle>
+                            </View>
                         </CardHeader>
                         <CardContent>
-                            <View className="flex-row justify-between items-center">
-                                <View className="flex-row items-center">
-                                    <DollarSign size={24} color="black" />
-                                    <Text className="text-xl ml-2">
-                                        {currencySymbol}{convertAmount(currentTrip?.budget ?? 0).toFixed(2)}
+                            <View className="flex-row justify-between items-center mb-4">
+                                <View className="flex-row items-center text-white">
+                                    <Text className="text-3xl  text-white font-bold">
+                                        {currencySymbol}{Number(convertAmount(financeData?.budget ?? currentTrip?.budget ?? 0)).toFixed(2)}
                                     </Text>
                                 </View>
                                 <Button
@@ -1124,14 +1180,47 @@ export default function Home() {
                                         });
                                     }}
                                 >
-                                    <Text>Edit Budget</Text>
+                                    <Text className="text-white bg-white/20 p-2 rounded-full">Edit</Text>
                                 </Button>
+                            </View>
+
+                            {/* Progress bar */}
+                            <View className="w-full">
+                                <View className="h-3 bg-white/20 rounded-full overflow-hidden">
+                                    <View
+                                        className="h-full bg-secondary rounded-full"
+                                        style={{
+                                            width: `${Math.min(((financeData?.budget ?? currentTrip?.budget ?? 0) - totalSpent) / (financeData?.budget ?? currentTrip?.budget ?? 1) * 100, 100)}%`
+                                        }}
+                                    />
+                                </View>
+                                <View className="flex-row justify-between mt-2">
+                                    <Text className="text-white/80 text-sm">
+                                        Spent: {currencySymbol}{totalSpentDisplay.toFixed(2)}
+                                    </Text>
+                                    <Text className="text-white/80 text-sm">
+                                        Remaining: {currencySymbol}{remainingBudgetDisplay.toFixed(2)}
+                                    </Text>
+                                </View>
                             </View>
                         </CardContent>
                     </Card>
-                    
+                    <View className="flex-row justify-between items-center mb-1">
+                        <Text className="text-2xl font-[JosefinSans-Bold] mb-3">
+                            Recent Activity
+                        </Text>
+                        <TouchableOpacity
+                            onPress={() => router.push("/finance")}
+                            className="flex-row items-center mb-3"
+                        >
+                            <Text className="text-sm text-primary font-[JosefinSans-Bold]">
+                                See all
+                            </Text>
+                            <ChevronRight size={16} color="#06ADD8" />
+                        </TouchableOpacity>
+                    </View>
 
-                    <Card className="mb-4 bg-primary border border-border">
+                    <Card className="mb-4 bg-white border border-border">
                         <CardHeader>
                             <CardTitle>Transactions</CardTitle>
                         </CardHeader>
@@ -1141,7 +1230,7 @@ export default function Home() {
                                     {tripItems.map((item, index) => (
                                         <View key={item.id}>
                                             <View className="flex-row justify-between items-center py-2">
-                                                <View className="flex-row items-center">
+                                                <View className="flex-row items-center ">
                                                     <List
                                                         size={24}
                                                         color="black"
@@ -1164,7 +1253,7 @@ export default function Home() {
                                     ))}
                                 </ScrollView>
                             ) : (
-                                <Text>No transactions yet.</Text>
+                                <Text className="text-gray-500 font-[JosefinSans-Regular]">No transactions yet.</Text>
                             )}
                         </CardContent>
                     </Card>

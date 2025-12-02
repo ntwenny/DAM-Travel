@@ -138,7 +138,7 @@ export default function SimilarProductsScreen() {
                         onPress={() => router.back()}
                         className="mb-4"
                     >
-                        <ArrowLeft size={24} color="white" />
+                        <ArrowLeft size={24} color="black" />
                     </TouchableOpacity>
 
                     <View className="p-5 text-center flex justify-center items-center">
@@ -180,13 +180,13 @@ export default function SimilarProductsScreen() {
                                                 </Text>
                                             </View>
                                         </View>
-                                        <View className="flex flex-row gap-x-2">
+                                        <View className="flex flex-row items-center gap-x-2">
                                             <DollarSignIcon
                                                 className="mr-2"
                                                 size={20}
                                                 color="black"
                                             />
-                                            <Text className="font-[JosefinSans-Bold]">
+                                            <Text className="bg-primary/40 p-2 rounded-full font-[JosefinSans-Bold]">
                                                 Pricing: {displayItemPrice}
                                             </Text>
                                         </View>
@@ -246,7 +246,7 @@ export default function SimilarProductsScreen() {
 
                     <View className="mt-6">
                         <Text className="text-lg font-semibold mb-4">
-                            Similar Items
+                            Items Found For You
                         </Text>
                         <ScrollView
                             horizontal
@@ -258,12 +258,11 @@ export default function SimilarProductsScreen() {
                                     onPress={() => handleSelectSimilar(item)}
                                 >
                                     <Card
-                                        className={`mr-4 w-40 ${
-                                            selectedPage?.productPage ===
-                                            item.productPage
+                                        className={`mr-4 w-40 ${selectedPage?.productPage ===
+                                                item.productPage
                                                 ? "border-primary"
                                                 : "border-border"
-                                        }`}
+                                            }`}
                                     >
                                         <CardContent className="p-2">
                                             <Image
@@ -295,7 +294,7 @@ export default function SimilarProductsScreen() {
                                                         {item.source}
                                                     </Text>
                                                 </View>
-                                                <Text className="text-md font-[JosefinSans-Bold] pt-2">
+                                                <Text className="text-md bg-primary/20 rounded-full p-1 font-[JosefinSans-Bold] pt-2">
                                                     Pricing:{" "}
                                                     {item.extractedPrice}
                                                 </Text>
