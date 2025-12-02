@@ -48,6 +48,7 @@ export interface CartItem extends TripItem {
     tripItemId: string;
     quantity: number;
     addedAt?: string | Date;
+    homeTax: boolean;
 }
 
 export interface TripLink {
@@ -74,6 +75,7 @@ export interface Receipt {
     total: number;
     currency: string;
     country: string;
+    taxRate: number;
 }
 export interface UserProperties {
     email: string;
@@ -82,4 +84,5 @@ export interface UserProperties {
 
     currentTripId?: string;
     trips: Trip[];
+    homeCountry?: string;
 }

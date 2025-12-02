@@ -30,6 +30,7 @@ import {
   getCartItems,
   clearCart,
   updateCartItemQuantity,
+  updateCartItemHomeTax,
 } from "./trip";
 import {
   getFinance,
@@ -39,6 +40,7 @@ import {
   addTransaction,
   deleteTransaction,
   editTransaction,
+  convertCurrency
 } from "./finance";
 
 logger.info("Registering Functions...");
@@ -69,4 +71,6 @@ export {
   addTransaction,
   deleteTransaction,
   editTransaction,
+  updateCartItemHomeTax,
+  convertCurrency,
 };

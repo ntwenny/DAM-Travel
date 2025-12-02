@@ -3,7 +3,7 @@ import * as admin from "firebase-admin";
 import {getStorage} from "firebase-admin/storage";
 import {Trip, TripItem, Receipt, CartItem} from "./types/trip";
 import currency from "currency.js";
-import * as salesTax from "sales-tax";
+import salesTax from "sales-tax";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {getFirestore} from "firebase-admin/firestore";
 import {getAuth} from "firebase-admin/auth";
@@ -17,10 +17,13 @@ const CART_SUBCOLLECTION = "cart";
 type StoredTripSummary = {
     id?: string;
     name?: string;
-    destination?: string;
+    location?: string;
+    destination?: string; // deprecated, kept for backward compatibility
     startDate?: string;
     endDate?: string;
-    totalBudget?: number;
+    budget?: number;
+    totalBudget?: number; // deprecated, kept for backward compatibility
+    currency?: string;
     items?: unknown[];
 };
 
@@ -106,10 +109,11 @@ export async function createTripInternal(
       const minimal = {
         id: tripRef.id,
         name,
-        destination: location,
+        location: location,
         startDate: tripRecord.startDate.toISOString(),
         endDate: tripRecord.endDate.toISOString(),
-        totalBudget: budget,
+        currency: tripCurrency,
+        budget: budget,
         items: [],
       };
       const existingTrips = Array.isArray(userData.trips) ?
@@ -298,7 +302,7 @@ export async function addTripItemInternal(
     id: newItemRef.id,
     name: item.name || "Unnamed Item",
     price: item.price || 0,
-    currency: item.currency || trip.currency,
+    currency: item.currency || "USD", // Always default to USD if no currency provided
     thumbnail: item.thumbnail,
     productPage: item.productPage,
     source: item.source,
@@ -517,6 +521,7 @@ export const addCartItem = functions.https.onCall(async (request) => {
     isInCart: true,
     quantity: qty,
     addedAt: now,
+    homeTax: false,
   };
 
   await cartDocRef.set(cartItem);
@@ -681,6 +686,43 @@ export const clearCart = functions.https.onCall(async (request) => {
   return {removed: cartSnap.size};
 });
 
+export const updateCartItemHomeTax = functions.https.onCall(async (request) => {
+  if (!request || !request.auth || !request.auth.uid) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "The function must be called while authenticated."
+    );
+  }
+
+  const {tripId, tripItemId, homeTax} = request.data || {};
+  if (!tripId || !tripItemId || typeof homeTax !== "boolean") {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "tripId, tripItemId and homeTax (boolean) are required."
+    );
+  }
+
+  const uid = request.auth.uid;
+  const cartDocRef = getCartCollection(uid, tripId).doc(tripItemId);
+  const cartDoc = await cartDocRef.get();
+  if (!cartDoc.exists) {
+    throw new functions.https.HttpsError(
+      "not-found",
+      "Cart item not found."
+    );
+  }
+
+  await cartDocRef.update({homeTax});
+  const existingData = cartDoc.data() as CartItem;
+  const nextItem: CartItem = {
+    ...existingData,
+    tripItemId: existingData.tripItemId || tripItemId,
+    homeTax,
+  };
+
+  return nextItem;
+});
+
 // Sets the user's currentTripId to the provided tripId (if the trip exists)
 export const setCurrentTrip = functions.https.onCall(async (request) => {
   if (!request || !request.auth || !request.auth.uid) {
@@ -721,9 +763,9 @@ export const setCurrentTrip = functions.https.onCall(async (request) => {
     const tripRecord: Trip = {
       id: tripId,
       name: minimal.name || "Trip",
-      location: minimal.destination || "",
-      currency: "",
-      budget: Number(minimal.totalBudget) || 0,
+      location: (minimal as any).location || (minimal as any).destination || "",
+      currency: (minimal as any).currency || "",
+      budget: Number((minimal as any).budget || (minimal as any).totalBudget) || 0,
       startDate: minimal.startDate ?
         new Date(minimal.startDate) :
         new Date(),
@@ -765,20 +807,95 @@ export const getTrips = onCall(async (request) => {
           budget: 0,
           categories: [],
         },
+        homeCountry: "US",
       };
       await userRef.set(initialData);
       return {trips: []};
     } catch (error) {
       console.error(`Failed to create user document for ${uid}`, error);
-      throw new HttpsError(
-        "internal",
-        "Failed to retrieve or create user data."
-      );
+      // Fallback: create a minimal doc without auth info to unblock the user
+      const fallback = {
+        email: "",
+        displayName: "",
+        photoURL: "",
+        createdAt: new Date(),
+        trips: [],
+        finance: {
+          budget: 0,
+          categories: [],
+        },
+        homeCountry: "US",
+      };
+      await userRef.set(fallback);
+      return {trips: []};
     }
   }
 
   const data = userDoc.data();
-  return {trips: data?.trips ?? []};
+  const trips = data?.trips ?? [];
+
+  console.log("getTrips called, trips count:", trips.length);
+
+  // Migrate trips: fix missing or incorrect currency and update field names
+  let needsUpdate = false;
+  const migratedTrips = trips.map((trip: any) => {
+    const tripLocation = trip.location || trip.destination;
+    console.log(`Processing trip ${trip.name}: location=${tripLocation}, currency=${trip.currency}`);
+
+    // Currency mapping for all countries
+    const currencyMap: {[key: string]: string} = {
+      US: "USD", GB: "GBP", JP: "JPY", CN: "CNY", KR: "KRW",
+      FR: "EUR", DE: "EUR", IT: "EUR", ES: "EUR", NL: "EUR",
+      BE: "EUR", AT: "EUR", PT: "EUR", GR: "EUR", IE: "EUR",
+      FI: "EUR", LU: "EUR", SK: "EUR", SI: "EUR", EE: "EUR",
+      LV: "EUR", LT: "EUR", MT: "EUR", CY: "EUR",
+      CA: "CAD", AU: "AUD", IN: "INR", BR: "BRL", MX: "MXN",
+      CH: "CHF", NO: "NOK", SE: "SEK", DK: "DKK", PL: "PLN",
+      CZ: "CZK", HU: "HUF", RO: "RON", BG: "BGN", HR: "HRK",
+      RU: "RUB", TR: "TRY", ZA: "ZAR", NZ: "NZD", SG: "SGD",
+      HK: "HKD", TW: "TWD", TH: "THB", MY: "MYR", ID: "IDR",
+      PH: "PHP", VN: "VND", AE: "AED", SA: "SAR", IL: "ILS",
+      EG: "EGP", NG: "NGN", KE: "KES", AR: "ARS", CL: "CLP",
+      CO: "COP", PE: "PEN", IS: "ISK", UA: "UAH", RS: "RSD",
+    };
+
+    // Always recalculate currency from location to fix incorrect values
+    let tripCurrency = "USD";
+    if (tripLocation && currencyMap[tripLocation]) {
+      tripCurrency = currencyMap[tripLocation];
+      // Check if currency needs updating
+      if (trip.currency !== tripCurrency) {
+        console.log(`Currency mismatch for ${trip.name}: ${trip.currency} -> ${tripCurrency}`);
+        needsUpdate = true;
+      }
+    } else {
+      console.log(`No currency mapping found for location: ${tripLocation}`);
+    }
+
+    // Update to new field names if using old ones
+    if (trip.destination && !trip.location) needsUpdate = true;
+    if (trip.totalBudget !== undefined && trip.budget === undefined) {
+      needsUpdate = true;
+    }
+
+    return {
+      ...trip,
+      location: tripLocation || "",
+      budget: trip.budget ?? trip.totalBudget ?? 0,
+      currency: tripCurrency || "USD",
+    };
+  });
+
+  // Save the migrated trips back to Firestore if changes were made
+  if (needsUpdate) {
+    console.log("Updating trips in Firestore with migrated data");
+    await userRef.update({trips: migratedTrips});
+    console.log("Trips updated successfully");
+  } else {
+    console.log("No updates needed for trips");
+  }
+
+  return {trips: migratedTrips};
 });
 
 export const createReceipt = functions.https.onCall(async (request) => {
@@ -803,46 +920,91 @@ export const createReceipt = functions.https.onCall(async (request) => {
     throw new functions.https.HttpsError("not-found", "Trip not found.");
   }
 
+  // Get user's home country
+  const userDoc = await db.collection("users").doc(uid).get();
+  if (!userDoc.exists) {
+    throw new functions.https.HttpsError(
+      "not-found",
+      "User profile not found."
+    );
+  }
+  const userData = userDoc.data();
+  const homeCountry = userData?.homeCountry;
+  if (!homeCountry) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Home country is not set. Please update your profile."
+    );
+  }
+
   const trip = tripDoc.data() as Trip;
   const subtotal = items.reduce(
-    (acc: number, item: TripItem) => currency(acc).add(item.price).value,
+    (acc: number, item: CartItem) => {
+      const itemTotal = item.price * (item.quantity || 1);
+      return currency(acc).add(itemTotal).value;
+    },
     0
   );
 
-  let taxRate = 0;
-  let serviceFee = 0;
+  let totalTax = 0;
+  const taxRates: number[] = [];
 
-  try {
-    // Get tax rate using sales-tax library
-    const taxInfo = await salesTax.getSalesTax(trip.location);
-    taxRate = taxInfo.rate || 0;
-
-    // Add additional costs based on country
-    const additionalCosts = getAdditionalCosts(trip.location, subtotal);
-    serviceFee = additionalCosts.serviceFee;
-  } catch (error) {
-    console.error(
-      "Error getting tax info for country:",
-      trip.location,
-      error
-    );
-    // Fallback to 0 tax rate if country not supported
-    taxRate = 0;
+  for (const item of items) {
+    const itemPrice = item.price * (item.quantity || 1);
+    
+    // Determine which country's tax to use
+    const taxCountry = item.homeTax ? homeCountry : trip.location;
+    
+    try {
+      const countryCode = taxCountry.trim().toUpperCase();
+      const taxInfo = await salesTax.getSalesTax(
+        countryCode,
+        countryCode === "US" ? "TX" : undefined
+      );
+      const itemTaxRate = taxInfo.rate || 0;
+      
+      if (itemTaxRate === 0) {
+        console.warn(
+          `Tax rate is 0 for country: ${taxCountry} (item: ${item.name})`
+        );
+      }
+      
+      const itemTax = currency(itemPrice).multiply(itemTaxRate).value;
+      totalTax = currency(totalTax).add(itemTax).value;
+      taxRates.push(itemTaxRate);
+      
+    } catch (error) {
+      console.error(
+        `Error getting tax for ${taxCountry} (item: ${item.name}):`,
+        error
+      );
+      taxRates.push(0);
+    }
   }
 
-  const tax = currency(subtotal).multiply(taxRate).value;
-  const totalBeforeFees = currency(subtotal).add(tax).value;
+  // Calculate average tax rate for display
+  const avgTaxRate = taxRates.length > 0 
+    ? taxRates.reduce((sum, rate) => sum + rate, 0) / taxRates.length 
+    : 0;
+
+  // Add service fees
+  const additionalCosts = getAdditionalCosts(trip.location, subtotal);
+  const serviceFee = additionalCosts.serviceFee;
+
+  const totalBeforeFees = currency(subtotal).add(totalTax).value;
   const total = currency(totalBeforeFees).add(serviceFee).value;
 
   const receipt: Receipt = {
     items,
     subtotal,
-    tax,
+    tax: totalTax,
     serviceFee,
     total,
     currency: trip.currency,
     country: trip.location,
+    taxRate: avgTaxRate,
   };
+  
 
   return receipt;
 });

@@ -17,7 +17,7 @@ import {
 } from "firebase/auth";
 import { getStorage, connectStorageEmulator } from "firebase/storage";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
-import type { CartItem } from "@/types/user";
+import type { CartItem, Receipt } from "@/types/user";
 
 /**
  * Minimal firebase initialization for the client.
@@ -113,16 +113,17 @@ export async function getTrips() {
 }
 
 export async function createTrip(
-    params: { name?: string; location?: string } = {}
+    params: { name?: string; location?: string; currency?: string } = {}
 ) {
     const callable = httpsCallable(functions, "createTrip");
     const res = await callable(params);
     return res.data;
 }
 
-export async function getFinance() {
+export async function getFinance(tripId: string) {
     const callable = httpsCallable(functions, "getFinance");
-    const res = await callable();
+    const currentUser = auth.currentUser;
+    const res = await callable({ userId: currentUser?.uid, tripId });
     return res.data as any;
 }
 
@@ -142,6 +143,7 @@ export async function updateUserProfile(data: {
     displayName?: string;
     photoURL?: string;
     email?: string;
+    homeCountry?: string;
 }) {
     const callable = httpsCallable(functions, "updateUser");
     const res = await callable(data);
@@ -185,6 +187,19 @@ export async function updateCartQuantity(
     return res.data as CartItem;
 }
 
+export async function updateCartItemHomeTax(
+  tripId: string,
+  tripItemId: string,
+  homeTax: boolean
+): Promise<void> {
+  const callable = httpsCallable(functions, "updateCartItemHomeTax");
+  await callable({
+    tripId,
+    tripItemId,
+    homeTax,
+  });
+}
+
 export async function getCart(tripId: string) {
     const callable = httpsCallable(functions, "getCartItems");
     const res = await callable({ tripId });
@@ -201,54 +216,47 @@ export async function clearCartItems(tripId: string) {
 export async function createReceiptForTrip(
     tripId: string,
     items: Array<Record<string, unknown>>
-): Promise<{
-    items: any[];
-    subtotal: number;
-    tax: number;
-    serviceFee: number;
-    total: number;
-    currency?: string;
-    country?: string;
-}> {
+): Promise<Receipt> {
     const callable = httpsCallable(functions, "createReceipt");
     const res = await callable({ tripId, items });
     return res.data as any;
 }
 
-export async function updateBudget(budget: number) {
+export async function updateBudget(tripId: string, budget: number) {
     const callable = httpsCallable(functions, "updateBudget");
-    await callable({ budget });
+    await callable({ budget, userId: auth.currentUser?.uid, tripId });
 }
 
-export async function addCategory(name: string) {
+export async function addCategory(tripId: string, name: string) {
     const callable = httpsCallable(functions, "addCategory");
-    const res = await callable({ name });
+    const res = await callable({ name, userId: auth.currentUser?.uid, tripId });
     return res.data;
 }
 
-export async function deleteCategory(id: string) {
+export async function deleteCategory(tripId: string, id: string) {
     const callable = httpsCallable(functions, "deleteCategory");
-    await callable({ id });
+    await callable({ id, userId: auth.currentUser?.uid, tripId });
 }
 
 export async function addTransaction(
+    tripId: string,
     categoryId: string,
     name: string,
     amount: number
 ) {
     const callable = httpsCallable(functions, "addTransaction");
-    const res = await callable({ categoryId, name, amount });
+    const res = await callable({ categoryId, name, amount, userId: auth.currentUser?.uid, tripId });
     return res.data;
 }
 
-export async function deleteTransaction(categoryId: string, itemId: string) {
+export async function deleteTransaction(tripId: string, categoryId: string, itemId: string) {
     const callable = httpsCallable(functions, "deleteTransaction");
-    await callable({ categoryId, itemId });
+    await callable({ categoryId, itemId, userId: auth.currentUser?.uid, tripId });
 }
 
-export async function editTransaction(categoryId: string, item: any) {
+export async function editTransaction(tripId: string, categoryId: string, item: any) {
     const callable = httpsCallable(functions, "editTransaction");
-    await callable({ categoryId, item });
+    await callable({ categoryId, item, userId: auth.currentUser?.uid, tripId });
 }
 
 export function observeAuthState(
@@ -273,6 +281,12 @@ export async function setCurrentTrip(tripId: string) {
     const callable = httpsCallable(functions, "setCurrentTrip");
     const res = await callable({ tripId });
     return res.data as { currentTripId: string };
+}
+
+export async function convertCurrency(from: string, to: string) {
+  const callable = httpsCallable(functions, "convertCurrency");
+  const result = await callable({ from, to });
+  return result.data as { rate: number; from: string; to: string; timestamp: number };
 }
 
 export default {

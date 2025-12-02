@@ -1,7 +1,6 @@
 import {UserProperties} from "@/types/user";
 import * as admin from "firebase-admin";
 import {firestore} from "firebase-admin";
-import {createTripInternal} from "./trip";
 import {auth} from "firebase-functions/v1";
 import * as logger from "firebase-functions/logger";
 import {HttpsError} from "firebase-functions/v1/https";
@@ -33,26 +32,12 @@ export const onUserCreate = auth.user().onCreate(async (user) => {
     displayName: user.displayName || "",
     photoURL: user.photoURL || "",
     trips: [],
+    homeCountry: "US", // Default home country
   };
 
   try {
     // Create user profile in Firestore
     await database.collection("users").doc(user.uid).set(userProfile);
-
-    // Create a default trip for the new user using shared trip creation helper
-    try {
-      const now = new Date();
-      await createTripInternal(user.uid, {
-        name: "My First Trip",
-        location: "",
-        currency: "",
-        budget: 0,
-        startDate: now,
-        endDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
-      });
-    } catch (err) {
-      logger.error("Failed to create default trip for user:", err);
-    }
 
     // Create user directory in Storage by adding a placeholder file
     const bucket = getStorage().bucket();

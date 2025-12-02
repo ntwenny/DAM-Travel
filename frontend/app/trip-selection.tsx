@@ -26,6 +26,7 @@ import {
     Modal,
     TextInput,
     ActivityIndicator,
+    ScrollView as RNScrollView,
 } from "react-native";
 import { Button } from "@/components/ui/button";
 import { SignInForm } from "@/components/sign-in-form";
@@ -48,6 +49,29 @@ import {
     signUpWithEmail,
     setCurrentTrip,
 } from "../lib/firebase";
+import countryList from "country-list-js";
+
+interface Country {
+    name: string;
+    iso2: string;
+    continent?: string;
+    currency: {
+        currencyCode: string;
+    };
+}
+
+const locations = Object.values(countryList.all)
+    .filter(
+        (country: any): country is Country =>
+            country.continent && country.currency
+    )
+    .map((country) => ({
+        label: country.name,
+        value: country.iso2,
+        currency: country.currency,
+        continent: country.continent,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 
 type TripOption = NonNullable<SelectOption>;
 
@@ -132,6 +156,8 @@ export default function TripSelectionScreen() {
     const [createVisible, setCreateVisible] = useState(false);
     const [creatingTrip, setCreatingTrip] = useState(false);
     const [newTripName, setNewTripName] = useState("");
+    const [newTripDestination, setNewTripDestination] = useState("");
+    const [destinationSearch, setDestinationSearch] = useState("");
     const [isSigningUp, setIsSigningUp] = useState(false);
 
     const loadTrips = useCallback(async () => {
@@ -222,10 +248,22 @@ export default function TripSelectionScreen() {
         }
         setCreatingTrip(true);
         setTripsError(null);
+        if (!newTripDestination) {
+            setTripsError("Destination is required.");
+            setCreatingTrip(false);
+            return;
+        }
+        const selectedLocation = locations.find((l) => l.value === newTripDestination);
+        const tripCurrency = selectedLocation?.currency?.currencyCode || "USD";
         try {
-            await createTrip({ name: trimmedName });
+            await createTrip({ 
+                name: trimmedName,
+                location: newTripDestination,
+                currency: tripCurrency,
+            });
             setCreateVisible(false);
             setNewTripName("");
+            setNewTripDestination("");
             await loadTrips();
         } catch (err) {
             console.error("Failed to create trip", err);
@@ -236,7 +274,7 @@ export default function TripSelectionScreen() {
         } finally {
             setCreatingTrip(false);
         }
-    }, [loadTrips, newTripName]);
+    }, [loadTrips, newTripName, newTripDestination]);
 
     const isSignedIn = Boolean(user);
     const displayName = user?.displayName || user?.email || "Traveler";
@@ -468,6 +506,48 @@ export default function TripSelectionScreen() {
                             onChangeText={setNewTripName}
                             className="bg-white/10 text-white p-2 rounded-md mb-3"
                         />
+                        <Text className="text-sm text-white mb-1">Destination</Text>
+                        <Select
+                            value={
+                                newTripDestination
+                                    ? { value: newTripDestination, label: locations.find((l: any) => l.value === newTripDestination)?.label || newTripDestination }
+                                    : undefined
+                            }
+                            onValueChange={(val) => setNewTripDestination(typeof val === "string" ? val : (val as any)?.value || "")}
+                        >
+                            <SelectTrigger className="bg-white/10 text-white p-2 rounded-md mb-3">
+                                <SelectValue placeholder="Select destination" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-64">
+                                <View className="p-2 border-b border-border">
+                                    <TextInput
+                                        value={destinationSearch}
+                                        onChangeText={setDestinationSearch}
+                                        placeholder="Search countries..."
+                                        className="bg-white px-3 py-2 rounded border border-border"
+                                        placeholderTextColor="#999"
+                                    />
+                                </View>
+                                <RNScrollView style={{ maxHeight: 240 }}>
+                                    {locations
+                                        .filter((loc) => 
+                                            loc.label.toLowerCase().includes(destinationSearch.toLowerCase())
+                                        )
+                                        .map((loc) => (
+                                            <SelectItem key={loc.value} value={loc.value} label={loc.label}>
+                                                {loc.label}
+                                            </SelectItem>
+                                        ))}
+                                    {locations.filter((loc) => 
+                                        loc.label.toLowerCase().includes(destinationSearch.toLowerCase())
+                                    ).length === 0 && (
+                                        <View className="p-4">
+                                            <Text className="text-center text-gray-500">No countries found</Text>
+                                        </View>
+                                    )}
+                                </RNScrollView>
+                            </SelectContent>
+                        </Select>
                         <View className="flex-row justify-end">
                             <Button
                                 variant="ghost"

@@ -5,6 +5,7 @@ import {
     Image,
     ScrollView,
     View,
+    Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -17,6 +18,7 @@ import {
     CalculatorIcon,
 } from "lucide-react-native";
 import { useCart } from "@/context/cart-context";
+import { useCurrency } from "@/context/currency-context";
 import { router } from "expo-router";
 import type { CartItem } from "@/types/user";
 
@@ -26,8 +28,9 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 
 export default function CartScreen() {
-    const { cartItems, updateQuantity, removeFromCart, clearCart, loading } =
+    const { cartItems, updateQuantity, removeFromCart, clearCart, updateHomeTax, loading } =
         useCart();
+    const { convertAmount, displayCurrency } = useCurrency();
     const [selected, setSelected] = useState<Record<string, boolean>>({});
 
     const getItemKey = useCallback(
@@ -59,6 +62,7 @@ export default function CartScreen() {
         (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
         0
     );
+    const totalDisplay = convertAmount(total);
 
     const toggleSelected = (id: string) => {
         setSelected((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -170,12 +174,8 @@ export default function CartScreen() {
                                                     {item.name}
                                                 </Text>
                                                 <Text className="font-[JosefinSans-Regular] text-lg text-muted-foreground">
-                                                    {item.currency
-                                                        ? `${item.currency} `
-                                                        : "$"}
-                                                    {(item.price || 0).toFixed(
-                                                        2
-                                                    )}
+                                                    {displayCurrency}{" "}
+                                                    {convertAmount(item.price || 0).toFixed(2)}
                                                 </Text>
                                             </View>
                                         </View>
@@ -196,7 +196,7 @@ export default function CartScreen() {
                                                 >
                                                     <Icon as={MinusIcon} />
                                                 </Button>
-                                                <Text className="font-['JosefinSans-Regular'] w-8 text-center text-base font-semibold">
+                                            <Text className="font-['JosefinSans-Regular'] w-8 text-center text-base font-semibold">
                                                     {item.quantity || 1}
                                                 </Text>
                                                 <Button
@@ -213,6 +213,51 @@ export default function CartScreen() {
                                                 >
                                                     <Icon as={PlusIcon} />
                                                 </Button>
+                                            </View>
+                                        </View>
+
+                                        {/* Tax preference toggle */}
+                                        <View className="mt-3 flex-row items-center justify-end gap-2">
+                                            <Text className="text-sm text-muted-foreground mr-2">
+                                                Tax preference
+                                            </Text>
+                                            <View className="flex-row rounded-full border border-border overflow-hidden">
+                                                <Pressable
+                                                    onPress={() => {
+                                                        const key = getItemKey(item);
+                                                        updateHomeTax(key, false).catch((error) => {
+                                                            Alert.alert(
+                                                                "Error",
+                                                                error instanceof Error ?
+                                                                    error.message :
+                                                                    "Failed to update tax preference"
+                                                            );
+                                                        });
+                                                    }}
+                                                    className={`px-3 py-2 ${item.homeTax ? "bg-card" : "bg-primary"}`}
+                                                >
+                                                    <Text className={`text-xs font-semibold ${item.homeTax ? "text-muted-foreground" : "text-primary-foreground"}`}>
+                                                        Buy on trip
+                                                    </Text>
+                                                </Pressable>
+                                                <Pressable
+                                                    onPress={() => {
+                                                        const key = getItemKey(item);
+                                                        updateHomeTax(key, true).catch((error) => {
+                                                            Alert.alert(
+                                                                "Error",
+                                                                error instanceof Error ?
+                                                                    error.message :
+                                                                    "Failed to update tax preference"
+                                                            );
+                                                        });
+                                                    }}
+                                                    className={`px-3 py-2 ${item.homeTax ? "bg-primary" : "bg-card"}`}
+                                                >
+                                                    <Text className={`text-xs font-semibold ${item.homeTax ? "text-primary-foreground" : "text-muted-foreground"}`}>
+                                                        Send home
+                                                    </Text>
+                                                </Pressable>
                                             </View>
                                         </View>
 
@@ -270,7 +315,7 @@ export default function CartScreen() {
                             Selected ({selectedItems.length})
                         </Text>
                         <Text className="font-['JosefinSans-Regular'] text-2xl font-semibold text-foreground">
-                            ${total.toFixed(2)}
+                            {displayCurrency} {totalDisplay.toFixed(2)}
                         </Text>
                     </View>
                     <Button
