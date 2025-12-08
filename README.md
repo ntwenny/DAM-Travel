@@ -4,7 +4,7 @@
 ![License](https://img.shields.io/badge/License-All%20Rights%20Reserved-red)
 
 <div align="center">
-  <img src="frontend/components/logo/skypocketlogo.png" alt="SkyPocket Logo" width="250"/>
+<img width="250" height="250" alt="Adobe Express - file" src="https://github.com/user-attachments/assets/c8c5d66f-d071-4083-8392-4e0af8c1ce5a" />
   <br />
   <br />
   <p>
