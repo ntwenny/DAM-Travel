@@ -63,6 +63,8 @@ The project is divided into two main directories:
     -   Google Cloud Vision / SerpApi (for image analysis and product search)
     -   Currency.js (for financial calculations)
     -   Cheerio (for data parsing)
+    -   Exchange API for (for real-time currency conversion rates)
+    -   sales-tax (for real-time tax rates)
 
 ## Workflows
 
