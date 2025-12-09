@@ -221,31 +221,76 @@ export default function FinanceScreen() {
         return categories.filter((c) => c.name.toLowerCase().includes(q));
     }, [categories, searchQuery]);
 
-    // Sync currency base/display when trip changes
-    useEffect(() => {
-        if (userProfile?.currentTripId) {
-            // Base currency is always USD since items are stored in USD
-            setBaseCurrency("USD");
+    // Get home currency from user profile
+    const homeCurrency = useMemo(() => {
+        if (!userProfile?.homeCountry) return "USD";
 
-            // Set display currency to home currency from user profile
-            const homeCurrency = userProfile?.homeCountry
-                ? (
-                      {
-                          US: "USD",
-                          FR: "EUR",
-                          GB: "GBP",
-                          JP: "JPY",
-                          CA: "CAD",
-                          AU: "AUD",
-                          CN: "CNY",
-                          IN: "INR",
-                      } as const
-                  )[userProfile.homeCountry] || "USD"
-                : "USD";
+        // Comprehensive country to currency mapping
+        const countryToCurrency: Record<string, string> = {
+            US: "USD",
+            FR: "EUR",
+            GB: "GBP",
+            JP: "JPY",
+            CA: "CAD",
+            AU: "AUD",
+            CN: "CNY",
+            IN: "INR",
+            KR: "KRW",
+            DE: "EUR",
+            IT: "EUR",
+            ES: "EUR",
+            NL: "EUR",
+            BE: "EUR",
+            AT: "EUR",
+            PT: "EUR",
+            IE: "EUR",
+            FI: "EUR",
+            GR: "EUR",
+            MX: "MXN",
+            BR: "BRL",
+            AR: "ARS",
+            CH: "CHF",
+            SE: "SEK",
+            NO: "NOK",
+            DK: "DKK",
+            PL: "PLN",
+            RU: "RUB",
+            ZA: "ZAR",
+            SG: "SGD",
+            HK: "HKD",
+            NZ: "NZD",
+            TH: "THB",
+            MY: "MYR",
+            PH: "PHP",
+            ID: "IDR",
+            VN: "VND",
+            TW: "TWD",
+            AE: "AED",
+            SA: "SAR",
+            TR: "TRY",
+            IL: "ILS",
+            EG: "EGP",
+            NG: "NGN",
+            KE: "KES",
+            CL: "CLP",
+            CO: "COP",
+            PE: "PEN",
+        };
+
+        return countryToCurrency[userProfile.homeCountry] || "USD";
+    }, [userProfile?.homeCountry]);
+
+    // Sync currency base/display when trip changes or on initial load
+    useEffect(() => {
+        // Always set base currency to USD (items stored in USD)
+        setBaseCurrency("USD");
+
+        // Set display currency to home currency
+        if (homeCurrency) {
             setDisplayCurrency(homeCurrency);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userProfile?.currentTripId]); // Only depend on trip ID, not the setter functions
+    }, [homeCurrency, userProfile?.currentTripId]); // Trigger on home currency or trip change
 
     // Hard-coded header colors for the first three categories (by original order)
     const categoryHeaderColors = [
