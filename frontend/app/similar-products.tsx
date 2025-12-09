@@ -88,7 +88,6 @@ export default function SimilarProductsScreen() {
     useEffect(() => {
         async function fetchTrip() {
             if (!tripId) return;
-            console.log("Hello?");
             try {
                 const trips = await getTrips();
                 console.log("Fetched trips:", trips);
@@ -113,6 +112,7 @@ export default function SimilarProductsScreen() {
         // Slow progress animation to 85% over ~8 seconds
         let progressInterval: NodeJS.Timeout;
         let progressValue = 0;
+        let pollInterval: NodeJS.Timeout;
 
         if (loading) {
             progressInterval = setInterval(() => {
@@ -134,6 +134,7 @@ export default function SimilarProductsScreen() {
                 if (data.parsingStatus === "PARSED") {
                     // Quickly complete the progress bar
                     clearInterval(progressInterval);
+                    clearInterval(pollInterval);
                     setProgress(100);
 
                     // Small delay to show completed progress
@@ -151,18 +152,30 @@ export default function SimilarProductsScreen() {
                             null;
                         setSelectedPage(primaryPage);
                     }
+                } else {
+                    // Item not fully parsed yet, continue polling
+                    console.log(
+                        "Item not parsed yet, status:",
+                        data.parsingStatus
+                    );
                 }
             } catch (error) {
                 console.error("Failed to fetch trip item", error);
-                clearInterval(progressInterval);
-                setLoading(false);
+                // Don't stop loading on error - keep polling until success
             }
         }
 
+        // Initial fetch
         fetchTripItem();
+
+        // Poll every 2 seconds until item is parsed
+        pollInterval = setInterval(() => {
+            fetchTripItem();
+        }, 2000);
 
         return () => {
             clearInterval(progressInterval);
+            clearInterval(pollInterval);
         };
     }, [user, tripId, tripItemId, selectedPage]);
 
