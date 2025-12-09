@@ -327,6 +327,17 @@ export async function convertCurrency(from: string, to: string) {
     };
 }
 
+export async function getLocationImage(location: string) {
+    const callable = httpsCallable(functions, "getLocationImage");
+    const result = await callable({ location });
+    return result.data as {
+        imageUrl: string | null;
+        title?: string;
+        source?: string;
+        cached?: boolean;
+    };
+}
+
 export default {
     auth,
     observeAuthState,
@@ -348,6 +359,7 @@ export default {
     deleteTransaction,
     editTransaction,
     createReceiptForTrip,
+    getLocationImage,
     storage,
     firestore,
 };
