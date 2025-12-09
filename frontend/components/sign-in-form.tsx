@@ -54,7 +54,11 @@ export function SignInForm({
                         <View className="items-center mb-2">
                             <Image
                                 source={require("./logo/skypocketlogo.png")}
-                                style={{ width: 160, height: 100, resizeMode: "contain" }}
+                                style={{
+                                    width: 160,
+                                    height: 100,
+                                    resizeMode: "contain",
+                                }}
                             />
                         </View>
                         <CardTitle className="text-center">
@@ -70,7 +74,7 @@ export function SignInForm({
                     <CardContent className="gap-6">
                         <View className="gap-6">
                             <View className="gap-1.5">
-                                <Label htmlFor="email">Email</Label>
+                                <Label htmlFor="email">Email </Label>
                                 <Input
                                     id="email"
                                     placeholder="m@example.com"

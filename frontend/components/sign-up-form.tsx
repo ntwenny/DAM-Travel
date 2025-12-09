@@ -15,7 +15,6 @@ import * as React from "react";
 import { type TextInput, View, Image } from "react-native";
 import AnimatedView from "./ui/animated-view";
 
-
 type SignUpFormProps = {
     onSubmit: (email: string, password: string) => Promise<void> | void;
     onSwitch: () => void;
@@ -54,7 +53,11 @@ export function SignUpForm({
                         <View className="items-center mb-2">
                             <Image
                                 source={require("./logo/skypocketlogo.png")}
-                                style={{ width: 160, height: 100, resizeMode: "contain" }}
+                                style={{
+                                    width: 160,
+                                    height: 100,
+                                    resizeMode: "contain",
+                                }}
                             />
                         </View>
                         <CardTitle className="text-center text-xl sm:text-left">
@@ -68,7 +71,7 @@ export function SignUpForm({
                     <CardContent className="gap-6">
                         <View className="gap-6">
                             <View className="gap-1.5">
-                                <Label htmlFor="email">Email</Label>
+                                <Label htmlFor="email">Email </Label>
                                 <Input
                                     id="email"
                                     placeholder="m@example.com"
