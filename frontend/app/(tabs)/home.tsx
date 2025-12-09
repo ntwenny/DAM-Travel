@@ -66,6 +66,7 @@ import {
     updateUserProfile,
     setCurrentTrip as remoteSetCurrentTrip,
     getFinance,
+    getLocationImage,
 } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/useToast";
@@ -232,6 +233,10 @@ export default function Home() {
     // Finance data from backend
     const [financeData, setFinanceData] = useState<any>(null);
 
+    // Dynamic banner image state
+    const [bannerImageUrl, setBannerImageUrl] = useState<string | null>(null);
+    const [bannerLoading, setBannerLoading] = useState(false);
+
     const {
         convertAmount,
         displayCurrency,
@@ -319,6 +324,43 @@ export default function Home() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentTrip?.id, homeCurrency]);
+
+    // Fetch dynamic banner image when trip location changes
+    useEffect(() => {
+        let mounted = true;
+
+        async function fetchBannerImage() {
+            if (!currentTrip?.location) {
+                setBannerImageUrl(null);
+                return;
+            }
+
+            // Get the country name from the location code
+            const locationData = locations.find(
+                (l) => l.value === currentTrip.location
+            );
+            const locationName = locationData?.label || currentTrip.location;
+
+            setBannerLoading(true);
+            try {
+                const result = await getLocationImage(locationName);
+                if (mounted && result.imageUrl) {
+                    setBannerImageUrl(result.imageUrl);
+                }
+            } catch (err) {
+                console.error("Failed to fetch banner image", err);
+                // Keep the default image on error
+            } finally {
+                if (mounted) setBannerLoading(false);
+            }
+        }
+
+        fetchBannerImage();
+
+        return () => {
+            mounted = false;
+        };
+    }, [currentTrip?.location]);
 
     useFocusEffect(
         useCallback(() => {
@@ -972,8 +1014,10 @@ export default function Home() {
             >
                 {/* Full-width header band (edge-to-edge) as logo background */}
                 <ImageBackground
-                    source={require("../../assets/images/korea.png")}
-                    className="w-full pt-20"
+                    source={
+                        bannerImageUrl ? { uri: bannerImageUrl } : undefined
+                    }
+                    className="w-full pt-20 bg-gray-200"
                 >
                     {/* Dark overlay */}
                     <View
@@ -986,6 +1030,19 @@ export default function Home() {
                             backgroundColor: "rgba(0, 0, 0, 0.1)",
                         }}
                     />
+                    {/* Loading indicator for banner */}
+                    {bannerLoading && (
+                        <View
+                            style={{
+                                position: "absolute",
+                                top: 10,
+                                right: 10,
+                                zIndex: 10,
+                            }}
+                        >
+                            <ActivityIndicator size="small" color="white" />
+                        </View>
+                    )}
 
                     <View className="px-6 pb-4">
                         {/* top-right menu (three vertical dots) */}
@@ -1018,10 +1075,10 @@ export default function Home() {
                         </View> */}
                         <View className="flex-col justify-between items-start mb-2">
                             <Text className="text-4xl font-[JosefinSans-Bold] text-white">
-                                안녕,
+                                Hey,
                             </Text>
                             <Text className="text-4xl font-[JosefinSans-Bold] text-white">
-                                {user?.displayName || "traveler"}
+                                {user?.displayName || "traveler"}!
                             </Text>
                         </View>
                     </View>
