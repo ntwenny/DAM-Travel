@@ -55,9 +55,7 @@ interface Country {
     name: string;
     iso2: string;
     continent?: string;
-    currency: {
-        currencyCode: string;
-    };
+    currency: string;
 }
 
 const locations = Object.values(countryList.all)
@@ -253,10 +251,13 @@ export default function TripSelectionScreen() {
             setCreatingTrip(false);
             return;
         }
-        const selectedLocation = locations.find((l) => l.value === newTripDestination);
-        const tripCurrency = selectedLocation?.currency?.currencyCode || "USD";
+        const selectedLocation = locations.find(
+            (l) => l.value === newTripDestination
+        );
+        console.log("Selected location for new trip:", selectedLocation);
+        const tripCurrency = selectedLocation?.currency || "USD";
         try {
-            await createTrip({ 
+            await createTrip({
                 name: trimmedName,
                 location: newTripDestination,
                 currency: tripCurrency,
@@ -500,20 +501,36 @@ export default function TripSelectionScreen() {
                             Create Trip
                         </Text>
                         <TextInput
-                            placeholder="Trip name"
+                            placeholder="Trip Name"
                             placeholderTextColor="#94a3b8"
                             value={newTripName}
                             onChangeText={setNewTripName}
-                            className="bg-white/10 text-white p-2 rounded-md mb-3"
+                            className="bg-white/10 font-[JosefinSans-Bold] text-white p-2 rounded-md mb-3"
                         />
-                        <Text className="text-sm text-white mb-1">Destination</Text>
+                        <Text className="text-sm text-white font-[JosefinSans-Bold] mb-1">
+                            Destination
+                        </Text>
                         <Select
                             value={
                                 newTripDestination
-                                    ? { value: newTripDestination, label: locations.find((l: any) => l.value === newTripDestination)?.label || newTripDestination }
+                                    ? {
+                                          value: newTripDestination,
+                                          label:
+                                              locations.find(
+                                                  (l: any) =>
+                                                      l.value ===
+                                                      newTripDestination
+                                              )?.label || newTripDestination,
+                                      }
                                     : undefined
                             }
-                            onValueChange={(val) => setNewTripDestination(typeof val === "string" ? val : (val as any)?.value || "")}
+                            onValueChange={(val) =>
+                                setNewTripDestination(
+                                    typeof val === "string"
+                                        ? val
+                                        : (val as any)?.value || ""
+                                )
+                            }
                         >
                             <SelectTrigger className="bg-white/10 text-white p-2 rounded-md mb-3">
                                 <SelectValue placeholder="Select destination" />
@@ -530,19 +547,33 @@ export default function TripSelectionScreen() {
                                 </View>
                                 <RNScrollView style={{ maxHeight: 240 }}>
                                     {locations
-                                        .filter((loc) => 
-                                            loc.label.toLowerCase().includes(destinationSearch.toLowerCase())
+                                        .filter((loc) =>
+                                            loc.label
+                                                .toLowerCase()
+                                                .includes(
+                                                    destinationSearch.toLowerCase()
+                                                )
                                         )
                                         .map((loc) => (
-                                            <SelectItem key={loc.value} value={loc.value} label={loc.label}>
-                                                {loc.label}
+                                            <SelectItem
+                                                key={loc.value}
+                                                value={loc.value}
+                                                label={`${loc.label} (${loc.currency})`}
+                                            >
+                                                {loc.label} ({loc.currency})
                                             </SelectItem>
                                         ))}
-                                    {locations.filter((loc) => 
-                                        loc.label.toLowerCase().includes(destinationSearch.toLowerCase())
+                                    {locations.filter((loc) =>
+                                        loc.label
+                                            .toLowerCase()
+                                            .includes(
+                                                destinationSearch.toLowerCase()
+                                            )
                                     ).length === 0 && (
                                         <View className="p-4">
-                                            <Text className="text-center text-gray-500">No countries found</Text>
+                                            <Text className="text-center text-gray-500">
+                                                No countries found
+                                            </Text>
                                         </View>
                                     )}
                                 </RNScrollView>
@@ -553,7 +584,9 @@ export default function TripSelectionScreen() {
                                 variant="ghost"
                                 onPress={() => setCreateVisible(false)}
                             >
-                                <Text>Cancel</Text>
+                                <Text className="text-background font-[JosefinSans-Bold]">
+                                    Cancel
+                                </Text>
                             </Button>
                             <Button
                                 onPress={handleCreateTrip}
