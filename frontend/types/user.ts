@@ -1,9 +1,12 @@
+import { FinanceState } from "./finance";
+
 export interface Trip {
     id: string;
     name: string;
     location: string; // country ISO2 code
     currency: string; // currency code
     budget: number;
+    finance?: FinanceState;
     startDate: Date;
     endDate: Date;
 }
