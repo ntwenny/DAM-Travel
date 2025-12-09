@@ -20,6 +20,7 @@ import {
   getTripItems,
   getTripItem,
   updateTripItem,
+  updateTrip,
   createReceipt,
   createTrip,
   setCurrentTrip,
@@ -40,7 +41,7 @@ import {
   addTransaction,
   deleteTransaction,
   editTransaction,
-  convertCurrency
+  convertCurrency,
 } from "./finance";
 
 logger.info("Registering Functions...");
@@ -54,6 +55,7 @@ export {
   getTripItems,
   getTripItem,
   updateTripItem,
+  updateTrip,
   createTrip,
   setCurrentTrip,
   deleteTrip,
