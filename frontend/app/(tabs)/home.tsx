@@ -23,7 +23,7 @@ import {
     Search,
     Plus,
     Wallet,
-    ChevronRight
+    ChevronRight,
 } from "lucide-react-native";
 import {
     SafeAreaView,
@@ -62,6 +62,7 @@ import {
     getTripItems,
     getTrips,
     createTrip,
+    updateTrip,
     updateUserProfile,
     setCurrentTrip as remoteSetCurrentTrip,
     getFinance,
@@ -81,9 +82,7 @@ interface Country {
     name: string;
     iso2: string;
     continent?: string;
-    currency: {
-        currencyCode: string;
-    };
+    currency: string;
 }
 
 const continentGraphics: { [key: string]: React.FC<any> } = {
@@ -233,33 +232,45 @@ export default function Home() {
     // Finance data from backend
     const [financeData, setFinanceData] = useState<any>(null);
 
-    const { convertAmount, displayCurrency, setBaseCurrency, setDisplayCurrency } = useCurrency();
+    const {
+        convertAmount,
+        displayCurrency,
+        setBaseCurrency,
+        setDisplayCurrency,
+    } = useCurrency();
 
     // Get home currency from user's home country
     const homeCurrency = React.useMemo(() => {
         if (!userProfile?.homeCountry) return "USD";
-        const homeCountryData = locations.find(l => l.value === userProfile.homeCountry);
-        return homeCountryData?.currency.currencyCode || "USD";
+        const homeCountryData = locations.find(
+            (l) => l.value === userProfile.homeCountry
+        );
+        return homeCountryData?.currency || "USD";
     }, [userProfile?.homeCountry]);
 
     useEffect(() => {
         if (userProfile) {
             // Normalize trip data to handle both old and new formats
-            const normalizedTrips = (userProfile.trips ?? []).map((trip: any) => {
-                const tripLocation = trip.location || trip.destination || "";
-                // Look up currency from location if not set
-                let tripCurrency = trip.currency;
-                if (!tripCurrency && tripLocation) {
-                    const locationData = locations.find(l => l.value === tripLocation);
-                    tripCurrency = locationData?.currency.currencyCode || "USD";
+            const normalizedTrips = (userProfile.trips ?? []).map(
+                (trip: any) => {
+                    const tripLocation =
+                        trip.location || trip.destination || "";
+                    // Look up currency from location if not set
+                    let tripCurrency = trip.currency;
+                    if (!tripCurrency && tripLocation) {
+                        const locationData = locations.find(
+                            (l) => l.value === tripLocation
+                        );
+                        tripCurrency = locationData?.currency || "USD";
+                    }
+                    return {
+                        ...trip,
+                        location: tripLocation,
+                        budget: trip.budget ?? trip.totalBudget ?? 0,
+                        currency: tripCurrency || "USD",
+                    };
                 }
-                return {
-                    ...trip,
-                    location: tripLocation,
-                    budget: trip.budget ?? trip.totalBudget ?? 0,
-                    currency: tripCurrency || "USD",
-                };
-            });
+            );
             setTrips(normalizedTrips);
         } else {
             setTrips([]);
@@ -327,20 +338,24 @@ export default function Home() {
 
                     const normalized = Array.isArray(latest)
                         ? (latest as any[]).map((trip: any) => {
-                            const tripLocation = trip.location || trip.destination || "";
-                            // Look up currency from location if not set
-                            let tripCurrency = trip.currency;
-                            if (!tripCurrency && tripLocation) {
-                                const locationData = locations.find(l => l.value === tripLocation);
-                                tripCurrency = locationData?.currency.currencyCode || "USD";
-                            }
-                            return {
-                                ...trip,
-                                location: tripLocation,
-                                budget: trip.budget ?? trip.totalBudget ?? 0,
-                                currency: tripCurrency || "USD",
-                            };
-                        })
+                              const tripLocation =
+                                  trip.location || trip.destination || "";
+                              // Look up currency from location if not set
+                              let tripCurrency = trip.currency;
+                              if (!tripCurrency && tripLocation) {
+                                  const locationData = locations.find(
+                                      (l) => l.value === tripLocation
+                                  );
+                                  tripCurrency =
+                                      locationData?.currency || "USD";
+                              }
+                              return {
+                                  ...trip,
+                                  location: tripLocation,
+                                  budget: trip.budget ?? trip.totalBudget ?? 0,
+                                  currency: tripCurrency || "USD",
+                              };
+                          })
                         : [];
                     setTrips(normalized);
                 } catch (error) {
@@ -378,20 +393,23 @@ export default function Home() {
             const latest = await getTrips();
             const normalized = Array.isArray(latest)
                 ? (latest as any[]).map((trip: any) => {
-                    const tripLocation = trip.location || trip.destination || "";
-                    // Look up currency from location if not set
-                    let tripCurrency = trip.currency;
-                    if (!tripCurrency && tripLocation) {
-                        const locationData = locations.find(l => l.value === tripLocation);
-                        tripCurrency = locationData?.currency.currencyCode || "USD";
-                    }
-                    return {
-                        ...trip,
-                        location: tripLocation,
-                        budget: trip.budget ?? trip.totalBudget ?? 0,
-                        currency: tripCurrency || "USD",
-                    };
-                })
+                      const tripLocation =
+                          trip.location || trip.destination || "";
+                      // Look up currency from location if not set
+                      let tripCurrency = trip.currency;
+                      if (!tripCurrency && tripLocation) {
+                          const locationData = locations.find(
+                              (l) => l.value === tripLocation
+                          );
+                          tripCurrency = locationData?.currency || "USD";
+                      }
+                      return {
+                          ...trip,
+                          location: tripLocation,
+                          budget: trip.budget ?? trip.totalBudget ?? 0,
+                          currency: tripCurrency || "USD",
+                      };
+                  })
                 : [];
             setTrips(normalized);
 
@@ -514,14 +532,21 @@ export default function Home() {
     // Use backend finance data if available, otherwise calculate locally
     // Calculate totalSpent the same way as finance.tsx - from categories
     const totalSpent = financeData?.categories
-        ? financeData.categories.reduce((sum, c) =>
-            sum + (c.items || []).reduce((s, it) => s + Number(it.amount || 0), 0), 0
-        )
+        ? financeData.categories.reduce(
+              (sum: number, c: any) =>
+                  sum +
+                  (c.items || []).reduce(
+                      (s: number, it: any) => s + Number(it.amount || 0),
+                      0
+                  ),
+              0
+          )
         : tripItems.reduce((acc, item) => acc + (item.price || 0), 0);
     const totalSpentDisplay = convertAmount(totalSpent);
 
     const budget = financeData?.budget ?? currentTrip?.budget ?? 0;
-    const remainingBudget = financeData?.remainingBudget ?? Math.max(budget - totalSpent, 0);
+    const remainingBudget =
+        financeData?.remainingBudget ?? Math.max(budget - totalSpent, 0);
     const remainingBudgetDisplay = convertAmount(remainingBudget);
 
     // Get the current currency symbol
@@ -598,11 +623,8 @@ export default function Home() {
         );
     }
 
-
-
     return (
         <SafeAreaView className="flex-1 bg-background">
-
             {/* Prompt modal for missing display name and home country */}
             <Modal visible={showNameDialog} transparent animationType="fade">
                 <View className="flex-1 justify-center items-center bg-black/50">
@@ -611,21 +633,33 @@ export default function Home() {
                             Hey — what&apos;s your name?
                         </Text>
                         <Text className="text-sm text-muted-foreground mb-4">
-                            We use your name and home country to personalize your trips.
+                            We use your name and home country to personalize
+                            your trips.
                         </Text>
                         <Input
                             value={nameValue}
                             onChangeText={setNameValue}
-                            placeholder="Full name"
+                            placeholder="Full Name"
                             autoCapitalize="words"
+                            className="font-[JosefinSans-Bold]"
                         />
                         <View className="mt-4">
                             <Text className="text-sm text-muted-foreground mb-2">
                                 Home Country
                             </Text>
                             <Select
-                                value={{ value: homeCountryValue, label: homeCountryValue ? locations.find(l => l.value === homeCountryValue)?.label || homeCountryValue : "Select your country" }}
-                                onValueChange={(val) => setHomeCountryValue(val?.value || "")}
+                                value={{
+                                    value: homeCountryValue,
+                                    label: homeCountryValue
+                                        ? locations.find(
+                                              (l) =>
+                                                  l.value === homeCountryValue
+                                          )?.label || homeCountryValue
+                                        : "Select your country",
+                                }}
+                                onValueChange={(val) =>
+                                    setHomeCountryValue(val?.value || "")
+                                }
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select your country" />
@@ -657,10 +691,14 @@ export default function Home() {
                             </Button>
                             <Button
                                 onPress={async () => {
-                                    if (!nameValue.trim() || !homeCountryValue) {
+                                    if (
+                                        !nameValue.trim() ||
+                                        !homeCountryValue
+                                    ) {
                                         toast({
                                             title: "Missing Information",
-                                            description: "Please enter your name and select your home country.",
+                                            description:
+                                                "Please enter your name and select your home country.",
                                             variant: "error",
                                         });
                                         return;
@@ -705,7 +743,11 @@ export default function Home() {
             </Modal>
 
             {/* Create Trip Modal */}
-            <Modal visible={showCreateTripDialog} transparent animationType="fade">
+            <Modal
+                visible={showCreateTripDialog}
+                transparent
+                animationType="fade"
+            >
                 <View className="flex-1 justify-center items-center bg-black/50">
                     <View className="bg-background p-6 rounded-lg w-11/12 max-w-md">
                         <Text className="text-xl font-[JosefinSans-Bold] mb-2">
@@ -715,7 +757,9 @@ export default function Home() {
                             Enter the details for your new trip.
                         </Text>
 
-                        <Text className="text-sm text-gray-700 mb-1">Trip Name</Text>
+                        <Text className="text-sm text-gray-700 mb-1">
+                            Trip Name
+                        </Text>
                         <Input
                             value={newTripName}
                             onChangeText={setNewTripName}
@@ -724,13 +768,21 @@ export default function Home() {
                             className="mb-4"
                         />
 
-                        <Text className="text-sm text-gray-700 mb-2">Destination</Text>
+                        <Text className="text-sm text-gray-700 mb-2">
+                            Destination
+                        </Text>
                         <Select
                             value={{
                                 value: newTripDestination,
-                                label: newTripDestination ? locations.find(l => l.value === newTripDestination)?.label || newTripDestination : "Select destination"
+                                label: newTripDestination
+                                    ? locations.find(
+                                          (l) => l.value === newTripDestination
+                                      )?.label || newTripDestination
+                                    : "Select destination",
                             }}
-                            onValueChange={(val) => setNewTripDestination(val?.value || "")}
+                            onValueChange={(val) =>
+                                setNewTripDestination(val?.value || "")
+                            }
                         >
                             <SelectTrigger>
                                 <SelectValue placeholder="Select destination" />
@@ -749,24 +801,35 @@ export default function Home() {
                                     <SelectGroup>
                                         {locations
                                             .filter((country) =>
-                                                country.label.toLowerCase().includes(destinationSearch.toLowerCase())
+                                                country.label
+                                                    .toLowerCase()
+                                                    .includes(
+                                                        destinationSearch.toLowerCase()
+                                                    )
                                             )
                                             .map((country) => (
                                                 <SelectItem
                                                     key={country.value}
-                                                    label={country.label}
+                                                    label={`${country.label} (${country.currency})`}
                                                     value={country.value}
                                                 >
-                                                    {country.label}
+                                                    {country.label} (
+                                                    {country.currency})
                                                 </SelectItem>
                                             ))}
                                         {locations.filter((country) =>
-                                            country.label.toLowerCase().includes(destinationSearch.toLowerCase())
+                                            country.label
+                                                .toLowerCase()
+                                                .includes(
+                                                    destinationSearch.toLowerCase()
+                                                )
                                         ).length === 0 && (
-                                                <View className="p-4">
-                                                    <Text className="text-center text-gray-500">No countries found</Text>
-                                                </View>
-                                            )}
+                                            <View className="p-4">
+                                                <Text className="text-center text-gray-500">
+                                                    No countries found
+                                                </Text>
+                                            </View>
+                                        )}
                                     </SelectGroup>
                                 </NativeSelectScrollView>
                             </SelectContent>
@@ -786,10 +849,14 @@ export default function Home() {
                             </Button>
                             <Button
                                 onPress={async () => {
-                                    if (!newTripName.trim() || !newTripDestination) {
+                                    if (
+                                        !newTripName.trim() ||
+                                        !newTripDestination
+                                    ) {
                                         toast({
                                             title: "Missing Information",
-                                            description: "Please enter a trip name and select a destination.",
+                                            description:
+                                                "Please enter a trip name and select a destination.",
                                             variant: "error",
                                         });
                                         return;
@@ -797,31 +864,60 @@ export default function Home() {
 
                                     setCreatingTrip(true);
                                     try {
-                                        const selectedLocation = locations.find(l => l.value === newTripDestination);
+                                        const selectedLocation = locations.find(
+                                            (l) =>
+                                                l.value === newTripDestination
+                                        );
                                         const newTrip = await createTrip({
                                             name: newTripName.trim(),
                                             location: newTripDestination,
-                                            currency: selectedLocation?.currency.currencyCode || "USD",
+                                            currency:
+                                                selectedLocation?.currency ||
+                                                "USD",
                                         });
 
                                         // Refresh trips list
                                         const updatedTrips = await getTrips();
-                                        const normalizedTrips = Array.isArray(updatedTrips)
-                                            ? (updatedTrips as any[]).map((trip: any) => {
-                                                const tripLocation = trip.location || trip.destination || "";
-                                                // Look up currency from location if not set
-                                                let tripCurrency = trip.currency;
-                                                if (!tripCurrency && tripLocation) {
-                                                    const locationData = locations.find(l => l.value === tripLocation);
-                                                    tripCurrency = locationData?.currency.currencyCode || "USD";
-                                                }
-                                                return {
-                                                    ...trip,
-                                                    location: tripLocation,
-                                                    budget: trip.budget ?? trip.totalBudget ?? 0,
-                                                    currency: tripCurrency || "USD",
-                                                };
-                                            })
+                                        const normalizedTrips = Array.isArray(
+                                            updatedTrips
+                                        )
+                                            ? (updatedTrips as any[]).map(
+                                                  (trip: any) => {
+                                                      const tripLocation =
+                                                          trip.location ||
+                                                          trip.destination ||
+                                                          "";
+                                                      // Look up currency from location if not set
+                                                      let tripCurrency =
+                                                          trip.currency;
+                                                      if (
+                                                          !tripCurrency &&
+                                                          tripLocation
+                                                      ) {
+                                                          const locationData =
+                                                              locations.find(
+                                                                  (l) =>
+                                                                      l.value ===
+                                                                      tripLocation
+                                                              );
+                                                          tripCurrency =
+                                                              locationData?.currency ||
+                                                              "USD";
+                                                      }
+                                                      return {
+                                                          ...trip,
+                                                          location:
+                                                              tripLocation,
+                                                          budget:
+                                                              trip.budget ??
+                                                              trip.totalBudget ??
+                                                              0,
+                                                          currency:
+                                                              tripCurrency ||
+                                                              "USD",
+                                                      };
+                                                  }
+                                              )
                                             : [];
                                         setTrips(normalizedTrips);
 
@@ -831,14 +927,19 @@ export default function Home() {
 
                                         toast({
                                             title: "Success!",
-                                            description: "Your trip has been created.",
+                                            description:
+                                                "Your trip has been created.",
                                             variant: "success",
                                         });
                                     } catch (err) {
-                                        console.error("Failed to create trip", err);
+                                        console.error(
+                                            "Failed to create trip",
+                                            err
+                                        );
                                         toast({
                                             title: "Error",
-                                            description: "Failed to create trip. Please try again.",
+                                            description:
+                                                "Failed to create trip. Please try again.",
                                             variant: "error",
                                         });
                                     } finally {
@@ -847,7 +948,14 @@ export default function Home() {
                                 }}
                                 disabled={creatingTrip}
                             >
-                                {creatingTrip ? <ActivityIndicator size="small" color="white" /> : <Text>Create Trip</Text>}
+                                {creatingTrip ? (
+                                    <ActivityIndicator
+                                        size="small"
+                                        color="white"
+                                    />
+                                ) : (
+                                    <Text>Create Trip</Text>
+                                )}
                             </Button>
                         </View>
                     </View>
@@ -862,12 +970,10 @@ export default function Home() {
                     />
                 }
             >
-
                 {/* Full-width header band (edge-to-edge) as logo background */}
                 <ImageBackground
                     source={require("../../assets/images/korea.png")}
                     className="w-full pt-20"
-
                 >
                     {/* Dark overlay */}
                     <View
@@ -917,19 +1023,96 @@ export default function Home() {
                             <Text className="text-4xl font-[JosefinSans-Bold] text-white">
                                 {user?.displayName || "traveler"}
                             </Text>
-
                         </View>
-
-
-
                     </View>
                 </ImageBackground>
 
                 <View className="m-6 flex-1">
                     <View className="flex-row items-center gap-3 mb-4">
                         <View className="flex-1">
-                            <Select className="bg-white rounded-medium border-white border-5">
-                                <SelectTrigger className="w-full bg-white p-2 rounded-medium border-border "
+                            <Select
+                                className="bg-white rounded-medium border-white border-5"
+                                value={
+                                    currentTrip?.location
+                                        ? {
+                                              value: currentTrip.location,
+                                              label:
+                                                  locations.find(
+                                                      (l) =>
+                                                          l.value ===
+                                                          currentTrip.location
+                                                  )?.label ||
+                                                  currentTrip.location,
+                                          }
+                                        : undefined
+                                }
+                                onValueChange={async (val) => {
+                                    const locationCode =
+                                        typeof val === "string"
+                                            ? val
+                                            : val?.value;
+                                    if (!locationCode || !currentTrip) return;
+
+                                    const selectedLocation = locations.find(
+                                        (l) => l.value === locationCode
+                                    );
+                                    if (!selectedLocation) return;
+
+                                    const newCurrency =
+                                        selectedLocation.currency || "USD";
+
+                                    // Update local state optimistically
+                                    const prevTrip = currentTrip;
+                                    setCurrentTrip((prev) =>
+                                        prev
+                                            ? {
+                                                  ...prev,
+                                                  location: locationCode,
+                                                  currency: newCurrency,
+                                              }
+                                            : null
+                                    );
+
+                                    try {
+                                        console.log(
+                                            "Updating trip location to",
+                                            locationCode,
+                                            "and currency to",
+                                            newCurrency,
+                                            currentTrip.id
+                                        );
+                                        // Update trip in backend
+                                        await updateTrip(currentTrip.id, {
+                                            location: locationCode,
+                                            currency: newCurrency,
+                                        });
+
+                                        // Update display currency to the new location's currency
+                                        await setDisplayCurrency(newCurrency);
+
+                                        toast({
+                                            title: "Location Updated",
+                                            description: `Now showing prices in ${newCurrency}`,
+                                            variant: "success",
+                                        });
+                                    } catch (err) {
+                                        console.error(
+                                            "Failed to update trip",
+                                            err
+                                        );
+                                        // Revert on error
+                                        setCurrentTrip(prevTrip);
+                                        toast({
+                                            title: "Error",
+                                            description:
+                                                "Failed to update location. Please try again.",
+                                            variant: "error",
+                                        });
+                                    }
+                                }}
+                            >
+                                <SelectTrigger
+                                    className="w-full bg-white p-2 rounded-medium border-border "
                                     style={{ backgroundColor: "white" }}
                                 >
                                     <Search className="size-8"></Search>
@@ -968,20 +1151,25 @@ export default function Home() {
                             onPress={async () => {
                                 const target =
                                     displayCurrency === homeCurrency
-                                        ? (currentTrip?.currency || "USD")
+                                        ? currentTrip?.currency || "USD"
                                         : homeCurrency;
+
                                 try {
                                     await setDisplayCurrency(target);
                                     toast({
                                         title: "Currency Changed",
-                                        description: `Showing prices in ${target} ${displayCurrency === homeCurrency}`,
+                                        description: `Showing prices in ${target}`,
                                         variant: "success",
                                     });
                                 } catch (err) {
-                                    console.error("Failed to change currency", err);
+                                    console.error(
+                                        "Failed to change currency",
+                                        err
+                                    );
                                     toast({
                                         title: "Error",
-                                        description: "Unable to change currency.",
+                                        description:
+                                            "Unable to change currency.",
                                         variant: "error",
                                     });
                                 }
@@ -990,7 +1178,7 @@ export default function Home() {
                             <View className="flex-row items-center">
                                 <DollarSign size={16} color="white" />
                                 <Text className="ml-2 text-white">
-                                    {displayCurrency} {displayCurrency === homeCurrency}
+                                    {displayCurrency}
                                 </Text>
                             </View>
                         </Button>
@@ -1006,9 +1194,9 @@ export default function Home() {
                             value={
                                 currentTrip
                                     ? {
-                                        label: currentTrip.name,
-                                        value: currentTrip.id,
-                                    }
+                                          label: currentTrip.name,
+                                          value: currentTrip.id,
+                                      }
                                     : undefined
                             }
                             onValueChange={async (val) => {
@@ -1023,7 +1211,7 @@ export default function Home() {
 
                                 const picked = tripId
                                     ? (trips.find((x) => x.id === tripId) ??
-                                        null)
+                                      null)
                                     : null;
                                 const prev = currentTrip;
                                 // optimistic local update
@@ -1057,8 +1245,10 @@ export default function Home() {
                                 }
                             }}
                         >
-                            <SelectTrigger className="w-full bg-white p-2 rounded-medium border-border mb-2"
-                                style={{ backgroundColor: "white" }}>
+                            <SelectTrigger
+                                className="w-full bg-white p-2 rounded-medium border-border mb-2"
+                                style={{ backgroundColor: "white" }}
+                            >
                                 <SelectValue
                                     className={
                                         currentTrip
@@ -1077,7 +1267,6 @@ export default function Home() {
                                                 value={t.id}
                                                 label={t.name}
                                             />
-
                                         ))}
                                     </SelectGroup>
                                 </NativeSelectScrollView>
@@ -1100,7 +1289,6 @@ export default function Home() {
                         </Button>
                     </View>
 
-
                     {currentTrip && (
                         <TripItemCarousel
                             items={tripItems}
@@ -1121,7 +1309,8 @@ export default function Home() {
                                 } else {
                                     toast({
                                         title: "Info",
-                                        description: "No product page available.",
+                                        description:
+                                            "No product page available.",
                                         variant: "info",
                                     });
                                 }
@@ -1161,15 +1350,28 @@ export default function Home() {
                     <Card className="mb-4 bg-primary border border-border text-white">
                         <CardHeader>
                             <View className="flex-row items-center">
-                                <Wallet size={20} color="white" className="mr-5" />
-                                <CardTitle className="text-white ml-3">Current Budget Left</CardTitle>
+                                <Wallet
+                                    size={20}
+                                    color="white"
+                                    className="mr-5"
+                                />
+                                <CardTitle className="text-white ml-3">
+                                    Current Budget Left
+                                </CardTitle>
                             </View>
                         </CardHeader>
                         <CardContent>
                             <View className="flex-row justify-between items-center mb-4">
                                 <View className="flex-row items-center text-white">
                                     <Text className="text-3xl  text-white font-bold">
-                                        {currencySymbol}{Number(convertAmount(financeData?.budget ?? currentTrip?.budget ?? 0)).toFixed(2)}
+                                        {currencySymbol}
+                                        {Number(
+                                            convertAmount(
+                                                financeData?.budget ??
+                                                    currentTrip?.budget ??
+                                                    0
+                                            )
+                                        ).toFixed(2)}
                                     </Text>
                                 </View>
                                 <Button
@@ -1177,11 +1379,16 @@ export default function Home() {
                                     onPress={() => {
                                         router.push({
                                             pathname: "/finance",
-                                            params: { budget: currentTrip?.budget ?? 0 }
+                                            params: {
+                                                budget:
+                                                    currentTrip?.budget ?? 0,
+                                            },
                                         });
                                     }}
                                 >
-                                    <Text className="text-white bg-white/20 p-2 rounded-full">Edit</Text>
+                                    <Text className="text-white bg-white/20 p-2 rounded-full">
+                                        Edit
+                                    </Text>
                                 </Button>
                             </View>
 
@@ -1191,16 +1398,18 @@ export default function Home() {
                                     <View
                                         className="h-full bg-secondary rounded-full"
                                         style={{
-                                            width: `${Math.min(((financeData?.budget ?? currentTrip?.budget ?? 0) - totalSpent) / (financeData?.budget ?? currentTrip?.budget ?? 1) * 100, 100)}%`
+                                            width: `${Math.min((((financeData?.budget ?? currentTrip?.budget ?? 0) - totalSpent) / (financeData?.budget ?? currentTrip?.budget ?? 1)) * 100, 100)}%`,
                                         }}
                                     />
                                 </View>
                                 <View className="flex-row justify-between mt-2">
                                     <Text className="text-white/80 text-sm">
-                                        Spent: {currencySymbol}{totalSpentDisplay.toFixed(2)}
+                                        Spent: {currencySymbol}
+                                        {totalSpentDisplay.toFixed(2)}
                                     </Text>
                                     <Text className="text-white/80 text-sm">
-                                        Remaining: {currencySymbol}{remainingBudgetDisplay.toFixed(2)}
+                                        Remaining: {currencySymbol}
+                                        {remainingBudgetDisplay.toFixed(2)}
                                     </Text>
                                 </View>
                             </View>
@@ -1242,9 +1451,9 @@ export default function Home() {
                                                 </View>
                                                 <Text>
                                                     -{currencySymbol}
-                                                    {convertAmount(item.price || 0).toFixed(
-                                                        2
-                                                    )}
+                                                    {convertAmount(
+                                                        item.price || 0
+                                                    ).toFixed(2)}
                                                 </Text>
                                             </View>
                                             {index < tripItems.length - 1 && (
@@ -1254,28 +1463,13 @@ export default function Home() {
                                     ))}
                                 </ScrollView>
                             ) : (
-                                <Text className="text-gray-500 font-[JosefinSans-Regular]">No transactions yet.</Text>
+                                <Text className="text-gray-500 font-[JosefinSans-Regular]">
+                                    No transactions yet.
+                                </Text>
                             )}
                         </CardContent>
                     </Card>
                 </View>
-                {locationRef.current && (
-                    <View
-                        style={{
-                            position: "absolute",
-                            top: 150,
-                            left: 100,
-                            opacity: 0.5,
-                        }}
-                    >
-                        <ChinaLantern
-                            width={120}
-                            height={120}
-                            color="black"
-                            fill="gray"
-                        />
-                    </View>
-                )}
             </ScrollView>
             <View
                 style={{
