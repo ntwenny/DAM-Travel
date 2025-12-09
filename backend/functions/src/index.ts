@@ -32,6 +32,7 @@ import {
   clearCart,
   updateCartItemQuantity,
   updateCartItemHomeTax,
+  getLocationImage,
 } from "./trip";
 import {
   getFinance,
@@ -75,4 +76,5 @@ export {
   editTransaction,
   updateCartItemHomeTax,
   convertCurrency,
+  getLocationImage,
 };
