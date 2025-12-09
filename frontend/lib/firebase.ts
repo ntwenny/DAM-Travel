@@ -120,6 +120,20 @@ export async function createTrip(
     return res.data;
 }
 
+export async function updateTrip(
+    tripId: string,
+    data: {
+        location?: string;
+        currency?: string;
+        name?: string;
+        budget?: number;
+    }
+) {
+    const callable = httpsCallable(functions, "updateTrip");
+    const res = await callable({ tripId, ...data });
+    return res.data;
+}
+
 export async function getFinance(tripId: string) {
     const callable = httpsCallable(functions, "getFinance");
     const currentUser = auth.currentUser;
@@ -188,16 +202,16 @@ export async function updateCartQuantity(
 }
 
 export async function updateCartItemHomeTax(
-  tripId: string,
-  tripItemId: string,
-  homeTax: boolean
+    tripId: string,
+    tripItemId: string,
+    homeTax: boolean
 ): Promise<void> {
-  const callable = httpsCallable(functions, "updateCartItemHomeTax");
-  await callable({
-    tripId,
-    tripItemId,
-    homeTax,
-  });
+    const callable = httpsCallable(functions, "updateCartItemHomeTax");
+    await callable({
+        tripId,
+        tripItemId,
+        homeTax,
+    });
 }
 
 export async function getCart(tripId: string) {
@@ -245,16 +259,35 @@ export async function addTransaction(
     amount: number
 ) {
     const callable = httpsCallable(functions, "addTransaction");
-    const res = await callable({ categoryId, name, amount, userId: auth.currentUser?.uid, tripId });
+    const res = await callable({
+        categoryId,
+        name,
+        amount,
+        userId: auth.currentUser?.uid,
+        tripId,
+    });
     return res.data;
 }
 
-export async function deleteTransaction(tripId: string, categoryId: string, itemId: string) {
+export async function deleteTransaction(
+    tripId: string,
+    categoryId: string,
+    itemId: string
+) {
     const callable = httpsCallable(functions, "deleteTransaction");
-    await callable({ categoryId, itemId, userId: auth.currentUser?.uid, tripId });
+    await callable({
+        categoryId,
+        itemId,
+        userId: auth.currentUser?.uid,
+        tripId,
+    });
 }
 
-export async function editTransaction(tripId: string, categoryId: string, item: any) {
+export async function editTransaction(
+    tripId: string,
+    categoryId: string,
+    item: any
+) {
     const callable = httpsCallable(functions, "editTransaction");
     await callable({ categoryId, item, userId: auth.currentUser?.uid, tripId });
 }
@@ -284,9 +317,14 @@ export async function setCurrentTrip(tripId: string) {
 }
 
 export async function convertCurrency(from: string, to: string) {
-  const callable = httpsCallable(functions, "convertCurrency");
-  const result = await callable({ from, to });
-  return result.data as { rate: number; from: string; to: string; timestamp: number };
+    const callable = httpsCallable(functions, "convertCurrency");
+    const result = await callable({ from, to });
+    return result.data as {
+        rate: number;
+        from: string;
+        to: string;
+        timestamp: number;
+    };
 }
 
 export default {
@@ -297,6 +335,7 @@ export default {
     signOutCurrentUser,
     getTrips,
     createTrip,
+    updateTrip,
     getFinance,
     getTripItems,
     getTripItem,
