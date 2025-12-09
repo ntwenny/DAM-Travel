@@ -979,3 +979,166 @@ function getAdditionalCosts(countryCode: string, subtotal: number) {
     serviceFee: currency(subtotal).multiply(costs.serviceFeeRate).value,
   };
 }
+
+/**
+ * Get a landscape banner image for a trip location using SerpAPI Google Images
+ * Images are cached in Firebase Storage to avoid repeated API calls
+ * @param location - The location name or country ISO code
+ * @returns The URL of a landscape banner image
+ */
+export const getLocationImage = functions.https.onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "User must be authenticated"
+    );
+  }
+
+  const {location} = request.data as { location?: string };
+  if (!location || typeof location !== "string") {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Location is required"
+    );
+  }
+
+  // Sanitize location for use as filename
+  const sanitizedLocation = location
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  const bucket = getStorage().bucket();
+  const cacheFolder = "location-banners";
+  const cacheFileName = `${cacheFolder}/${sanitizedLocation}.json`;
+  const cacheFile = bucket.file(cacheFileName);
+
+  try {
+    // Check if cached metadata exists
+    const [exists] = await cacheFile.exists();
+    if (exists) {
+      functions.logger.info("Using cached location image", {location});
+      const [contents] = await cacheFile.download();
+      const cached = JSON.parse(contents.toString());
+      return {
+        imageUrl: cached.imageUrl,
+        title: cached.title || location,
+        source: cached.source,
+        cached: true,
+      };
+    }
+  } catch (err) {
+    functions.logger.warn("Failed to read cache", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    // Continue to fetch new image if cache read fails
+  }
+
+  // No cache found, fetch from SerpAPI
+  const apiKey = process.env.SERPAPI_KEY;
+  if (!apiKey) {
+    functions.logger.warn("SERPAPI_KEY not set; returning null");
+    return {imageUrl: null};
+  }
+
+  try {
+    // Search for landscape/travel images of the location
+    const searchQuery = `${location} travel landscape scenic`;
+    const params = new URLSearchParams({
+      engine: "google_images",
+      q: searchQuery,
+      google_domain: "google.com",
+      hl: "en",
+      gl: "us",
+      tbm: "isch",
+      // Filter for large, wide images suitable for banners
+      tbs: "isz:l,iar:w", // Large size, wide aspect ratio
+      api_key: apiKey,
+    });
+
+    const resp = await fetch(
+      `https://serpapi.com/search.json?${params.toString()}`,
+      {method: "GET"}
+    );
+
+    if (!resp.ok) {
+      functions.logger.warn("SerpAPI Images HTTP error", {
+        status: resp.status,
+        statusText: resp.statusText,
+      });
+      return {imageUrl: null};
+    }
+
+    const body = await resp.json();
+    functions.logger.debug("SerpAPI Images Response", {
+      query: searchQuery,
+      resultsCount: body.images_results?.length || 0,
+    });
+
+    const results = Array.isArray(body.images_results) ?
+      body.images_results :
+      [];
+
+    if (results.length === 0) {
+      functions.logger.info("No images found for location", {location});
+      return {imageUrl: null};
+    }
+
+    // Get a random image from the first 10 results for variety
+    const topResults = results.slice(0, 10);
+    const randomIndex = Math.floor(Math.random() * topResults.length);
+    const selectedImage = topResults[randomIndex];
+
+    // Get the original (full-size) image URL
+    const imageUrl = selectedImage.original || selectedImage.thumbnail;
+
+    // Cache the result for future use
+    const cacheData = {
+      imageUrl,
+      title: selectedImage.title || location,
+      source: selectedImage.source,
+      cachedAt: new Date().toISOString(),
+      location,
+    };
+
+    try {
+      await cacheFile.save(JSON.stringify(cacheData), {
+        metadata: {
+          contentType: "application/json",
+        },
+      });
+      functions.logger.info("Cached location image", {
+        location,
+        cacheFile: cacheFileName,
+      });
+    } catch (cacheErr) {
+      functions.logger.warn("Failed to cache image metadata", {
+        error:
+                    cacheErr instanceof Error ?
+                      cacheErr.message :
+                      String(cacheErr),
+      });
+      // Continue even if caching fails
+    }
+
+    functions.logger.info("Location image selected", {
+      location,
+      imageUrl,
+    });
+
+    return {
+      imageUrl,
+      title: selectedImage.title || location,
+      source: selectedImage.source,
+      cached: false,
+    };
+  } catch (err) {
+    functions.logger.error("Failed to fetch location image", {
+      error: err instanceof Error ? err.message : String(err),
+      location,
+    });
+    return {imageUrl: null};
+  }
+});
