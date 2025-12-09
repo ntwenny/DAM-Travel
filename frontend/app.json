@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.convergent.dam-travel",
+      "bundleIdentifier": "com.converget.dam-travel",
       "infoPlist": {
         "NSCameraUsageDescription": "We use the camera to take photos."
       }
