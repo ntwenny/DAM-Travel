@@ -9,6 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
+import { Progress } from "@/components/ui/progress";
 import {
     ArrowBigDownDashIcon,
     ArrowLeft,
@@ -29,13 +30,36 @@ import {
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { getTripItem, updateTripItem } from "@/lib/firebase";
-import { TripItem, ShoppingPage } from "@/types/user";
+import { getTripItem, updateTripItem, getTrips } from "@/lib/firebase";
+import { TripItem, ShoppingPage, Trip } from "@/types/user";
 import { useUser } from "@/hooks/useUser";
 import { useToast } from "@/hooks/useToast";
+import { useCurrency } from "@/context/currency-context";
+import { getCurrencySymbol } from "@/lib/utils";
+import countryList from "country-list-js";
+
+interface Country {
+    name: string;
+    iso2: string;
+    continent?: string;
+    currency: string;
+}
+
+const locations = Object.values(countryList.all)
+    .filter(
+        (country: any): country is Country =>
+            country.continent && country.currency
+    )
+    .map((country) => ({
+        label: country.name,
+        value: country.iso2,
+        currency: country.currency,
+        continent: country.continent,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 
 export default function SimilarProductsScreen() {
-    const { user } = useUser();
+    const { user, userProfile } = useUser();
     const { tripId, tripItemId } = useLocalSearchParams<{
         tripId: string;
         tripItemId: string;
@@ -43,9 +67,63 @@ export default function SimilarProductsScreen() {
     const [tripItem, setTripItem] = useState<TripItem | null>(null);
     const [selectedPage, setSelectedPage] = useState<ShoppingPage | null>(null);
     const [loading, setLoading] = useState(true);
+    const [progress, setProgress] = useState(0);
+    const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
+
+    const {
+        convertAmount,
+        displayCurrency,
+        setBaseCurrency,
+        setDisplayCurrency,
+    } = useCurrency();
+    const currencySymbol = getCurrencySymbol(displayCurrency);
+
+    // Get home currency from user's home country
+    const homeCurrency = userProfile?.homeCountry
+        ? locations.find((l) => l.value === userProfile.homeCountry)
+              ?.currency || "USD"
+        : "USD";
+
+    // Fetch current trip and set up currency
+    useEffect(() => {
+        async function fetchTrip() {
+            if (!tripId) return;
+            console.log("Hello?");
+            try {
+                const trips = await getTrips();
+                console.log("Fetched trips:", trips);
+                const trip = trips?.find((t: Trip) => t.id === tripId) || null;
+                setCurrentTrip(trip);
+
+                if (trip) {
+                    setBaseCurrency("USD"); // Base is always USD
+                    setDisplayCurrency(homeCurrency); // Display starts with home currency
+                }
+            } catch (err) {
+                console.error("Failed to fetch trip", err);
+            }
+        }
+        fetchTrip();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tripId, homeCurrency]);
 
     useEffect(() => {
         if (!user || !tripId || !tripItemId) return;
+
+        // Slow progress animation to 85% over ~8 seconds
+        let progressInterval: NodeJS.Timeout;
+        let progressValue = 0;
+
+        if (loading) {
+            progressInterval = setInterval(() => {
+                progressValue += 0.5; // Increment by 0.5% every 50ms
+                if (progressValue <= 85) {
+                    setProgress(progressValue);
+                } else {
+                    clearInterval(progressInterval);
+                }
+            }, 50); // Update every 50ms for smooth animation
+        }
 
         async function fetchTripItem() {
             try {
@@ -54,9 +132,16 @@ export default function SimilarProductsScreen() {
                 console.log("Fetched trip item:", data);
 
                 if (data.parsingStatus === "PARSED") {
-                    setLoading(false);
+                    // Quickly complete the progress bar
+                    clearInterval(progressInterval);
+                    setProgress(100);
+
+                    // Small delay to show completed progress
+                    setTimeout(() => {
+                        setLoading(false);
+                    }, 300);
+
                     if (!selectedPage) {
-                        console.log("Moo");
                         const primaryPage =
                             data._items?.pages?.find(
                                 (p: ShoppingPage) =>
@@ -69,11 +154,16 @@ export default function SimilarProductsScreen() {
                 }
             } catch (error) {
                 console.error("Failed to fetch trip item", error);
+                clearInterval(progressInterval);
                 setLoading(false);
             }
         }
 
         fetchTripItem();
+
+        return () => {
+            clearInterval(progressInterval);
+        };
     }, [user, tripId, tripItemId, selectedPage]);
 
     const handleSelectSimilar = async (page: ShoppingPage) => {
@@ -102,9 +192,23 @@ export default function SimilarProductsScreen() {
 
     if (loading) {
         return (
-            <SafeAreaView className="flex-1 bg-background justify-center items-center">
+            <SafeAreaView className="flex-1 bg-background justify-center items-center px-8">
                 <ActivityIndicator size="large" color="white" />
-                <Text className="mt-4 text-lg">Analyzing your image...</Text>
+                <Text className="mt-4 text-lg font-[JosefinSans-Bold] text-center">
+                    Analyzing your image...
+                </Text>
+                <View className="w-full mt-6 flex-col items-center">
+                    <Progress
+                        value={progress}
+                        className="h-3 mx-5"
+                        indicatorClassName="bg-primary"
+                    />
+                    <Text className="mt-2 text-sm text-muted-foreground font-[JosefinSans-Bold] text-center">
+                        {progress < 85
+                            ? "Processing image..."
+                            : "Almost there!"}
+                    </Text>
+                </View>
             </SafeAreaView>
         );
     }
@@ -125,21 +229,43 @@ export default function SimilarProductsScreen() {
     const displayItem = selectedPage || tripItem;
     const similarItems = tripItem._items?.pages || [];
 
-    const displayItemPrice =
+    const rawPrice =
         "price" in displayItem
-            ? (displayItem.price.toFixed(2) ?? 0)
-            : (displayItem.extractedPrice?.toFixed(2) ?? 0);
+            ? displayItem.price
+            : (displayItem.extractedPrice ?? 0);
+    const displayItemPrice = convertAmount(rawPrice).toFixed(2);
+
+    // Toggle currency between home and trip currency
+    const toggleCurrency = async () => {
+        const tripCurrency = currentTrip?.currency || "USD";
+        console.log(currentTrip);
+        console.log("Trip currency:", tripCurrency);
+        const target =
+            displayCurrency === homeCurrency ? tripCurrency : homeCurrency;
+        try {
+            await setDisplayCurrency(target);
+        } catch (err) {
+            console.error("Failed to change currency", err);
+        }
+    };
 
     return (
         <SafeAreaView className="flex-1 bg-background">
             <ScrollView>
                 <View className="p-4">
-                    <TouchableOpacity
-                        onPress={() => router.back()}
-                        className="mb-4"
-                    >
-                        <ArrowLeft size={24} color="black" />
-                    </TouchableOpacity>
+                    <View className="flex-row justify-between items-center mb-4">
+                        <TouchableOpacity onPress={() => router.back()}>
+                            <ArrowLeft size={24} color="black" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={toggleCurrency}
+                            className="bg-primary px-4 py-2 rounded-full"
+                        >
+                            <Text className="text-white font-[JosefinSans-Bold]">
+                                {displayCurrency}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
 
                     <View className="p-5 text-center flex justify-center items-center">
                         <Text className="text-3xl  flex font-bold">
@@ -187,7 +313,8 @@ export default function SimilarProductsScreen() {
                                                 color="black"
                                             />
                                             <Text className="bg-primary/40 p-2 rounded-full font-[JosefinSans-Bold]">
-                                                Pricing: {displayItemPrice}
+                                                Pricing: {currencySymbol}
+                                                {displayItemPrice}
                                             </Text>
                                         </View>
                                         <View className="flex flex-row flex-wrap rounded-xl px-2 py-1 mt-2">
@@ -244,84 +371,162 @@ export default function SimilarProductsScreen() {
                         </CardFooter>
                     </Card>
 
-                    {similarItems.length > 0 && (() => {
-                        const prices = similarItems
-                            .map(item => item.extractedPrice)
-                            .filter((price): price is number => typeof price === 'number' && price > 0);
+                    {similarItems.length > 0 &&
+                        (() => {
+                            const prices = similarItems
+                                .map((item) => item.extractedPrice)
+                                .filter(
+                                    (price): price is number =>
+                                        typeof price === "number" && price > 0
+                                );
 
-                        if (prices.length === 0) return null;
+                            if (prices.length === 0) return null;
 
-                        const minPrice = Math.min(...prices);
-                        const maxPrice = Math.max(...prices);
+                            const minPrice = Math.min(...prices);
+                            const maxPrice = Math.max(...prices);
 
-                        // Calculate current item price position
-                        const currentPrice = 'price' in displayItem
-                            ? displayItem.price
-                            : displayItem.extractedPrice || 0;
+                            // Calculate current item price position
+                            const currentPrice =
+                                "price" in displayItem
+                                    ? displayItem.price
+                                    : displayItem.extractedPrice || 0;
 
-                        const priceRange = maxPrice - minPrice;
-                        const pricePosition = priceRange > 0
-                            ? ((currentPrice - minPrice) / priceRange) * 100
-                            : 50;
+                            const priceRange = maxPrice - minPrice;
+                            const pricePosition =
+                                priceRange > 0
+                                    ? ((currentPrice - minPrice) / priceRange) *
+                                      100
+                                    : 50;
 
-                        return (
-                            <Card className="w-full mt-6 mb-6">
-                                <CardHeader>
-                                    <CardTitle>
-                                        <Text className="text-lg font-semibold">
-                                            Price Range
-                                        </Text>
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <View className="flex-row justify-between mb-2">
-                                        <Text className="text-sm font-[JosefinSans-Bold] text-green-600">
-                                            ${minPrice.toFixed(2)}
-                                        </Text>
-                                        <Text className="text-sm font-[JosefinSans-Bold] text-red-600">
-                                            ${maxPrice.toFixed(2)}
-                                        </Text>
-                                    </View>
-                                    <View className="relative">
-                                        <View className="h-4 rounded-full overflow-hidden flex-row">
-                                            <View style={{ flex: 1, backgroundColor: '#22c55e' }} />
-                                            <View style={{ flex: 1, backgroundColor: '#34d058' }} />
-                                            <View style={{ flex: 1, backgroundColor: '#65d46e' }} />
-                                            <View style={{ flex: 1, backgroundColor: '#84cc16' }} />
-                                            <View style={{ flex: 1, backgroundColor: '#a3e635' }} />
-                                            <View style={{ flex: 1, backgroundColor: '#fbbf24' }} />
-                                            <View style={{ flex: 1, backgroundColor: '#fb923c' }} />
-                                            <View style={{ flex: 1, backgroundColor: '#f97316' }} />
-                                            <View style={{ flex: 1, backgroundColor: '#f87171' }} />
-                                            <View style={{ flex: 1, backgroundColor: '#ef4444' }} />
+                            return (
+                                <Card className="w-full mt-6 mb-6">
+                                    <CardHeader>
+                                        <CardTitle>
+                                            <Text className="text-lg font-semibold">
+                                                Price Range
+                                            </Text>
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <View className="flex-row justify-between mb-2">
+                                            <Text className="text-sm font-[JosefinSans-Bold] text-green-600">
+                                                {currencySymbol}
+                                                {convertAmount(
+                                                    minPrice
+                                                ).toFixed(2)}
+                                            </Text>
+                                            <Text className="text-sm font-[JosefinSans-Bold] text-red-600">
+                                                {currencySymbol}
+                                                {convertAmount(
+                                                    maxPrice
+                                                ).toFixed(2)}
+                                            </Text>
                                         </View>
-                                        <View
-                                            style={{
-                                                position: 'absolute',
-                                                left: `${pricePosition}%`,
-                                                top: -4,
-                                                transform: [{ translateX: -8 }],
-                                            }}
-                                        >
-                                            <View className="items-center">
-                                                <View className="w-6 h-6 rounded-full bg-white border-2 border-primary shadow-lg" />
-                                                <View className="mt-1 bg-primary px-2 py-1 rounded">
-                                                    <Text className="text-xs font-[JosefinSans-Bold] text-white">
-                                                        ${currentPrice.toFixed(2)}
-                                                    </Text>
+                                        <View className="relative">
+                                            <View className="h-4 rounded-full overflow-hidden flex-row">
+                                                <View
+                                                    style={{
+                                                        flex: 1,
+                                                        backgroundColor:
+                                                            "#22c55e",
+                                                    }}
+                                                />
+                                                <View
+                                                    style={{
+                                                        flex: 1,
+                                                        backgroundColor:
+                                                            "#34d058",
+                                                    }}
+                                                />
+                                                <View
+                                                    style={{
+                                                        flex: 1,
+                                                        backgroundColor:
+                                                            "#65d46e",
+                                                    }}
+                                                />
+                                                <View
+                                                    style={{
+                                                        flex: 1,
+                                                        backgroundColor:
+                                                            "#84cc16",
+                                                    }}
+                                                />
+                                                <View
+                                                    style={{
+                                                        flex: 1,
+                                                        backgroundColor:
+                                                            "#a3e635",
+                                                    }}
+                                                />
+                                                <View
+                                                    style={{
+                                                        flex: 1,
+                                                        backgroundColor:
+                                                            "#fbbf24",
+                                                    }}
+                                                />
+                                                <View
+                                                    style={{
+                                                        flex: 1,
+                                                        backgroundColor:
+                                                            "#fb923c",
+                                                    }}
+                                                />
+                                                <View
+                                                    style={{
+                                                        flex: 1,
+                                                        backgroundColor:
+                                                            "#f97316",
+                                                    }}
+                                                />
+                                                <View
+                                                    style={{
+                                                        flex: 1,
+                                                        backgroundColor:
+                                                            "#f87171",
+                                                    }}
+                                                />
+                                                <View
+                                                    style={{
+                                                        flex: 1,
+                                                        backgroundColor:
+                                                            "#ef4444",
+                                                    }}
+                                                />
+                                            </View>
+                                            <View
+                                                style={{
+                                                    position: "absolute",
+                                                    left: `${pricePosition}%`,
+                                                    top: -4,
+                                                    transform: [
+                                                        { translateX: -8 },
+                                                    ],
+                                                }}
+                                            >
+                                                <View className="items-center">
+                                                    <View className="w-6 h-6 rounded-full bg-white border-2 border-primary shadow-lg" />
+                                                    <View className="mt-1 bg-primary px-2 py-1 rounded">
+                                                        <Text className="text-xs font-[JosefinSans-Bold] text-white">
+                                                            {currencySymbol}
+                                                            {convertAmount(
+                                                                currentPrice
+                                                            ).toFixed(2)}
+                                                        </Text>
+                                                    </View>
                                                 </View>
                                             </View>
                                         </View>
-                                    </View>
-                                    <View className="flex-row justify-center mt-10">
-                                        <Text className="text-xs text-muted-foreground">
-                                            Lowest to Highest Prices
-                                        </Text>
-                                    </View>
-                                </CardContent>
-                            </Card>
-                        );
-                    })()}
+                                        <View className="flex-row justify-center mt-10">
+                                            <Text className="text-xs text-muted-foreground">
+                                                Lowest to Highest Prices
+                                            </Text>
+                                        </View>
+                                    </CardContent>
+                                </Card>
+                            );
+                        })()}
 
                     <View className="mt-6">
                         <Text className="text-lg font-semibold mb-4">
@@ -337,11 +542,12 @@ export default function SimilarProductsScreen() {
                                     onPress={() => handleSelectSimilar(item)}
                                 >
                                     <Card
-                                        className={`mr-4 w-40 ${selectedPage?.productPage ===
-                                                item.productPage
+                                        className={`mr-4 w-40 ${
+                                            selectedPage?.productPage ===
+                                            item.productPage
                                                 ? "border-primary"
                                                 : "border-border"
-                                            }`}
+                                        }`}
                                     >
                                         <CardContent className="p-2">
                                             <Image
@@ -374,8 +580,10 @@ export default function SimilarProductsScreen() {
                                                     </Text>
                                                 </View>
                                                 <Text className="text-md bg-primary/20 rounded-full p-1 font-[JosefinSans-Bold] pt-2">
-                                                    Pricing:{" "}
-                                                    {item.extractedPrice}
+                                                    {currencySymbol}
+                                                    {convertAmount(
+                                                        item.extractedPrice || 0
+                                                    ).toFixed(2)}
                                                 </Text>
                                             </View>
                                         </CardContent>
