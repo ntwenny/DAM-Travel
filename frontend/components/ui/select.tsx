@@ -33,7 +33,7 @@ function SelectValue({
         <SelectPrimitive.Value
             ref={ref}
             className={cn(
-                "text-foreground line-clamp-1 flex flex-row items-center gap-2 text-sm",
+                "text-background font-[JosefinSans-Bold] line-clamp-1 flex flex-row items-center gap-2 text-sm",
                 !value && "text-muted-foreground",
                 className
             )}
@@ -195,7 +195,7 @@ function SelectItem({
                     />
                 </SelectPrimitive.ItemIndicator>
             </View>
-            <SelectPrimitive.ItemText className="text-foreground group-active:text-accent-foreground select-none text-sm" />
+            <SelectPrimitive.ItemText className="text-foreground group-active:text-accent-foreground select-none font-[JosefinSans-Bold] text-sm" />
         </SelectPrimitive.Item>
     );
 }
